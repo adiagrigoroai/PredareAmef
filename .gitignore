@@ -1,0 +1,27 @@
+## Build / artifacts
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.pdb
+*.vshost.exe
+*.vshost.exe.manifest
+
+## Visual Studio
+.vs/
+*.vcxproj.user
+
+## Installer output
+installer/Output/
+installer/*.exe
+
+## Local dev helpers
+.idea/
+.vscode/
+*.bak
+*.bak_*
+*.log
+
+## Secrets — App.config local cu token NU se commit-uieste
+PredareAmef/App.local.config
