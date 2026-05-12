@@ -56,17 +56,32 @@ namespace PredareAmef.Forms
             Theme.ApplyButtonSecondary(btnOpenOutput);
             Theme.ApplyButtonSuccess(btnMulti);
 
-            // ── ALINIERE FORTATA: cele 4 butoane principale pe aceeasi linie (Y=310)
-            // Designer-ul avea coordonate care la DPI > 100% se mutau inconsistent.
-            // Aici forteaza pozitia identica pentru toate.
-            const int BTN_Y = 310;
+            // ── ALINIERE FORTATA: cele 4 butoane principale pe aceeasi linie
+            // sub grpSteps (calculat dinamic ca sa nu intre in conflict cu DPI scaling).
+            int btnY = grpSteps.Bottom + 12;
             const int BTN_H = 40;
             const int GAP   = 8;
             int x = 12;
-            btnStart.Location      = new System.Drawing.Point(x, BTN_Y); btnStart.Size      = new System.Drawing.Size(320, BTN_H); x += 320 + GAP;
-            btnCancel.Location     = new System.Drawing.Point(x, BTN_Y); btnCancel.Size     = new System.Drawing.Size(110, BTN_H); x += 110 + GAP;
-            btnOpenOutput.Location = new System.Drawing.Point(x, BTN_Y); btnOpenOutput.Size = new System.Drawing.Size(175, BTN_H); x += 175 + GAP;
-            btnMulti.Location      = new System.Drawing.Point(x, BTN_Y); btnMulti.Size      = new System.Drawing.Size(165, BTN_H);
+            btnStart.Location      = new System.Drawing.Point(x, btnY); btnStart.Size      = new System.Drawing.Size(320, BTN_H); x += 320 + GAP;
+            btnCancel.Location     = new System.Drawing.Point(x, btnY); btnCancel.Size     = new System.Drawing.Size(110, BTN_H); x += 110 + GAP;
+            btnOpenOutput.Location = new System.Drawing.Point(x, btnY); btnOpenOutput.Size = new System.Drawing.Size(175, BTN_H); x += 175 + GAP;
+            btnMulti.Location      = new System.Drawing.Point(x, btnY); btnMulti.Size      = new System.Drawing.Size(165, BTN_H);
+
+            // Asigura ca butoanele NU sunt copii ai grpSteps si sunt deasupra (Z-order)
+            if (btnMulti.Parent != this)  { btnMulti.Parent = this; }
+            btnStart.BringToFront();
+            btnCancel.BringToFront();
+            btnOpenOutput.BringToFront();
+            btnMulti.BringToFront();
+
+            // Mut progress bars si log dinamic, sub butoane
+            int progY = btnY + BTN_H + 12;
+            prg.Location = new System.Drawing.Point(12, progY);
+            lblStatus.Location = new System.Drawing.Point(12, progY + 22);
+            prgSub.Location = new System.Drawing.Point(12, progY + 44);
+            lblSubStatus.Location = new System.Drawing.Point(12, progY + 66);
+            rtbLog.Location = new System.Drawing.Point(12, progY + 92);
+            rtbLog.Size = new System.Drawing.Size(rtbLog.Width, Math.Max(150, this.ClientSize.Height - rtbLog.Top - 20));
 
             // Inputuri
             Theme.ApplyTextBox(txtClient);
