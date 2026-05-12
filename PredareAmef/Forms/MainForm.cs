@@ -120,7 +120,7 @@ namespace PredareAmef.Forms
             };
             var lblFooterVer = new System.Windows.Forms.Label
             {
-                Text = "PredareAmef v" + ver + "  •  Qbiz © 2026",
+                Text = "PredareAmef v" + ver + "  •  IT Smart Retail © 2026",
                 Font = Theme.FontSmall,
                 ForeColor = Theme.TextDim,
                 AutoSize = true,

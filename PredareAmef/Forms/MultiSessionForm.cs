@@ -140,7 +140,7 @@ namespace PredareAmef.Forms
             };
             footerPanel.Controls.Add(new Label
             {
-                Text = "PredareAmef v" + ver + "  •  Qbiz © 2026",
+                Text = "PredareAmef v" + ver + "  •  IT Smart Retail © 2026",
                 Font = Theme.FontSmall, ForeColor = Theme.TextDim,
                 AutoSize = true, Left = 12, Top = 6, BackColor = Color.Transparent
             });
