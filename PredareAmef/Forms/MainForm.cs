@@ -60,6 +60,117 @@ namespace PredareAmef.Forms
         {
             Theme.ApplyFormStyle(this);
 
+            // ── HEADER BAND modern cu titlu + versiune ─────────────────────────
+            string ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+            this.Text = "Predare AMEF v" + ver;
+
+            const int HEADER_H = 56;
+            var headerPanel = new System.Windows.Forms.Panel
+            {
+                Dock = System.Windows.Forms.DockStyle.Top,
+                Height = HEADER_H,
+                BackColor = Theme.Primary
+            };
+            var lblBrand = new System.Windows.Forms.Label
+            {
+                Text = "Predare AMEF",
+                Font = new System.Drawing.Font("Segoe UI Semibold", 14F),
+                ForeColor = System.Drawing.Color.White,
+                Left = 18, Top = 8, AutoSize = true,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            var lblBrandSub = new System.Windows.Forms.Label
+            {
+                Text = "Utilitar predare memorie fiscala Datecs",
+                Font = new System.Drawing.Font("Segoe UI", 8.5F),
+                ForeColor = System.Drawing.Color.FromArgb(220, 230, 250),
+                Left = 19, Top = 34, AutoSize = true,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            var lblVerHeader = new System.Windows.Forms.Label
+            {
+                Text = "v" + ver,
+                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.White,
+                AutoSize = true,
+                BackColor = System.Drawing.Color.FromArgb(50, 0, 0, 0),
+                Padding = new System.Windows.Forms.Padding(8, 4, 8, 4),
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right
+            };
+            lblVerHeader.Location = new System.Drawing.Point(this.ClientSize.Width - 80, 18);
+            headerPanel.Controls.Add(lblBrand);
+            headerPanel.Controls.Add(lblBrandSub);
+            headerPanel.Controls.Add(lblVerHeader);
+            this.Controls.Add(headerPanel);
+            headerPanel.BringToFront();
+
+            // ── FOOTER cu versiune + link "Verifica update" ────────────────────
+            const int FOOTER_H = 26;
+            var footerPanel = new System.Windows.Forms.Panel
+            {
+                Dock = System.Windows.Forms.DockStyle.Bottom,
+                Height = FOOTER_H,
+                BackColor = Theme.Surface2,
+                Padding = new System.Windows.Forms.Padding(12, 0, 12, 0)
+            };
+            footerPanel.Paint += (s, e) =>
+            {
+                using (var pen = new System.Drawing.Pen(Theme.Border))
+                    e.Graphics.DrawLine(pen, 0, 0, footerPanel.Width, 0);
+            };
+            var lblFooterVer = new System.Windows.Forms.Label
+            {
+                Text = "PredareAmef v" + ver + "  •  Qbiz © 2026",
+                Font = Theme.FontSmall,
+                ForeColor = Theme.TextDim,
+                AutoSize = true,
+                Left = 12, Top = 6,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            var lnkUpdate = new System.Windows.Forms.LinkLabel
+            {
+                Text = "Verifica actualizari",
+                Font = Theme.FontSmall,
+                AutoSize = true,
+                Top = 6,
+                BackColor = System.Drawing.Color.Transparent,
+                LinkColor = Theme.Primary,
+                ActiveLinkColor = Theme.PrimaryHover,
+                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right
+            };
+            lnkUpdate.LinkClicked += async (s, e) =>
+            {
+                lnkUpdate.Text = "Verific...";
+                string token = System.Configuration.ConfigurationManager.AppSettings["GitHubToken"] ?? "";
+                var info = await System.Threading.Tasks.Task.Run(() => Services.UpdateService.CheckForUpdate(token));
+                lnkUpdate.Text = "Verifica actualizari";
+                if (info != null && info.HasUpdate && !string.IsNullOrEmpty(info.AssetDownloadUrl))
+                {
+                    using (var dlg = new UpdateDialog(info, token))
+                        dlg.ShowDialog(this);
+                }
+                else
+                {
+                    System.Windows.Forms.MessageBox.Show(this,
+                        "Folosesti deja cea mai recenta versiune (v" + ver + ").",
+                        "Update", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
+                }
+            };
+            footerPanel.Controls.Add(lblFooterVer);
+            footerPanel.Controls.Add(lnkUpdate);
+            footerPanel.Resize += (s, e) => { lnkUpdate.Left = footerPanel.Width - lnkUpdate.Width - 16; };
+            this.Controls.Add(footerPanel);
+            footerPanel.BringToFront();
+
+            // ── MUT toate controls existente cu HEADER_H in jos (sub header) ───
+            foreach (System.Windows.Forms.Control c in this.Controls)
+            {
+                if (c == headerPanel || c == footerPanel) continue;
+                c.Top += HEADER_H;
+            }
+            // Extind form-ul ca sa incapa header + footer
+            this.ClientSize = new System.Drawing.Size(this.ClientSize.Width, this.ClientSize.Height + HEADER_H + FOOTER_H);
+
             // Butoane principale colorate
             Theme.ApplyButtonPrimary(btnStart);
             Theme.ApplyButtonSecondary(btnCancel);
