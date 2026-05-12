@@ -42,6 +42,43 @@ namespace PredareAmef.Services
             catch { return new Version(0, 0, 0, 0); }
         }
 
+        // ── Anti-bucla: memoreaza ultima versiune ignorata (cu timestamp) intr-un fisier
+        // langa exe. Daca acelasi update a fost incercat/respins in ultimele 24h, NU mai prompt.
+        private static string IgnoredVersionFile
+        {
+            get
+            {
+                string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Path.GetTempPath();
+                return Path.Combine(dir, ".predareamef_ignored_update");
+            }
+        }
+
+        public static void MarkVersionIgnored(string tagName)
+        {
+            try
+            {
+                File.WriteAllText(IgnoredVersionFile, tagName + "|" + DateTime.UtcNow.ToString("o"));
+            }
+            catch { /* best-effort */ }
+        }
+
+        public static bool WasVersionRecentlyIgnored(string tagName)
+        {
+            try
+            {
+                if (!File.Exists(IgnoredVersionFile)) return false;
+                string s = File.ReadAllText(IgnoredVersionFile).Trim();
+                var parts = s.Split('|');
+                if (parts.Length != 2) return false;
+                if (!string.Equals(parts[0], tagName, StringComparison.OrdinalIgnoreCase)) return false;
+                DateTime ts;
+                if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind, out ts)) return false;
+                // Skip prompt timp de 24h pentru aceeasi versiune ignorata/esuata
+                return (DateTime.UtcNow - ts).TotalHours < 24;
+            }
+            catch { return false; }
+        }
+
         private static string GetString(Dictionary<string, object> d, string key)
         {
             object v;
@@ -170,16 +207,18 @@ namespace PredareAmef.Services
 
             var sb = new StringBuilder();
             sb.AppendLine("@echo off");
-            sb.AppendLine("timeout /t 2 /nobreak >nul");
+            sb.AppendLine("setlocal EnableDelayedExpansion");
+            sb.AppendLine("timeout /t 3 /nobreak >nul");
             sb.AppendLine("set RETRY=0");
             sb.AppendLine(":COPY");
-            sb.AppendLine("copy /Y \"" + newExePath + "\" \"" + currentExe + "\" >nul 2>&1");
+            sb.AppendLine("copy /Y /B \"" + newExePath + "\" \"" + currentExe + "\" >nul 2>&1");
             sb.AppendLine("if errorlevel 1 (");
             sb.AppendLine("  set /a RETRY+=1");
-            sb.AppendLine("  if !RETRY! lss 5 (");
-            sb.AppendLine("    timeout /t 1 /nobreak >nul");
+            sb.AppendLine("  if !RETRY! lss 20 (");
+            sb.AppendLine("    timeout /t 2 /nobreak >nul");
             sb.AppendLine("    goto COPY");
             sb.AppendLine("  )");
+            sb.AppendLine("  echo Update FAILED — copy locked after 20 retries > \"" + Path.Combine(Path.GetTempPath(), "PredareAmef_update_error.log") + "\"");
             sb.AppendLine(")");
             sb.AppendLine("start \"\" \"" + currentExe + "\"");
             sb.AppendLine("del \"" + newExePath + "\" >nul 2>&1");

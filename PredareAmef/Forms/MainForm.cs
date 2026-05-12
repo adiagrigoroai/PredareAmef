@@ -34,8 +34,19 @@ namespace PredareAmef.Forms
                 var info = await System.Threading.Tasks.Task.Run(() => Services.UpdateService.CheckForUpdate(token));
                 if (info != null && info.HasUpdate && !string.IsNullOrEmpty(info.AssetDownloadUrl))
                 {
+                    // ── ANTI-BUCLA: daca aceasta versiune a fost incercata/ignorata recent (<24h),
+                    // nu mai propunem update. Util cand batch-ul de copy a esuat (exe locked).
+                    if (Services.UpdateService.WasVersionRecentlyIgnored(info.TagName))
+                    {
+                        System.Diagnostics.Trace.WriteLine("Update " + info.TagName + " ignorat recent — skip prompt.");
+                        return;
+                    }
                     using (var dlg = new UpdateDialog(info, token))
-                        dlg.ShowDialog(this);
+                    {
+                        var result = dlg.ShowDialog(this);
+                        if (result == System.Windows.Forms.DialogResult.Cancel)
+                            Services.UpdateService.MarkVersionIgnored(info.TagName);
+                    }
                 }
             }
             catch { /* update e best-effort, nu blocheaza app */ }
