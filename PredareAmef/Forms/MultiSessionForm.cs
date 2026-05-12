@@ -84,6 +84,77 @@ namespace PredareAmef.Forms
                     lbl.Font = Theme.FontBase;
                 }
             }
+
+            // ── HEADER BAND + FOOTER cu versiune (identic cu MainForm) ─────────
+            string ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString(3);
+            this.Text = "Predare AMEF v" + ver + " — Multi-aparat";
+
+            const int HEADER_H = 56;
+            const int FOOTER_H = 26;
+
+            var headerPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = HEADER_H,
+                BackColor = Theme.Primary
+            };
+            headerPanel.Controls.Add(new Label
+            {
+                Text = "Predare AMEF — Multi-aparat",
+                Font = new Font("Segoe UI Semibold", 14F),
+                ForeColor = Color.White,
+                Left = 18, Top = 8, AutoSize = true, BackColor = Color.Transparent
+            });
+            headerPanel.Controls.Add(new Label
+            {
+                Text = "Scanare COM + predare paralela pe mai multe aparate",
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Color.FromArgb(220, 230, 250),
+                Left = 19, Top = 34, AutoSize = true, BackColor = Color.Transparent
+            });
+            var lblVerBadge = new Label
+            {
+                Text = "v" + ver,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                BackColor = Color.FromArgb(50, 0, 0, 0),
+                Padding = new Padding(8, 4, 8, 4),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            lblVerBadge.Location = new Point(this.ClientSize.Width - 80, 18);
+            headerPanel.Controls.Add(lblVerBadge);
+            this.Controls.Add(headerPanel);
+            headerPanel.BringToFront();
+
+            var footerPanel = new Panel
+            {
+                Dock = DockStyle.Bottom, Height = FOOTER_H,
+                BackColor = Theme.Surface2,
+                Padding = new Padding(12, 0, 12, 0)
+            };
+            footerPanel.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Theme.Border))
+                    e.Graphics.DrawLine(pen, 0, 0, footerPanel.Width, 0);
+            };
+            footerPanel.Controls.Add(new Label
+            {
+                Text = "PredareAmef v" + ver + "  •  Qbiz © 2026",
+                Font = Theme.FontSmall, ForeColor = Theme.TextDim,
+                AutoSize = true, Left = 12, Top = 6, BackColor = Color.Transparent
+            });
+            this.Controls.Add(footerPanel);
+            footerPanel.BringToFront();
+
+            // Mut toate controls existente cu HEADER_H in jos (sub header)
+            foreach (Control c in this.Controls)
+            {
+                if (c == headerPanel || c == footerPanel) continue;
+                c.Top += HEADER_H;
+            }
+            // Extind form-ul
+            this.ClientSize = new Size(this.ClientSize.Width, this.ClientSize.Height + HEADER_H + FOOTER_H);
         }
 
         private void BuildUI()
