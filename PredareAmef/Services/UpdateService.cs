@@ -42,22 +42,41 @@ namespace PredareAmef.Services
             catch { return new Version(0, 0, 0, 0); }
         }
 
-        // ── Anti-bucla: memoreaza ultima versiune ignorata (cu timestamp) intr-un fisier
-        // langa exe. Daca acelasi update a fost incercat/respins in ultimele 24h, NU mai prompt.
-        private static string IgnoredVersionFile
+        // ── Anti-bucla: stocheaza ultima tentativa de update intr-un fisier
+        // in %APPDATA%\PredareAmef\ (sigur scrieabil, evita UAC/Desktop blocking).
+        // Indiferent daca user apasa Update sau Mai tarziu, versiunea e marcata "tried"
+        // pentru 6 ore, ca sa evitam bucle de update cand copy-ul esueaza.
+        private static string StateDir
         {
             get
             {
-                string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? Path.GetTempPath();
-                return Path.Combine(dir, ".predareamef_ignored_update");
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string dir = Path.Combine(appData, "PredareAmef");
+                if (!Directory.Exists(dir))
+                {
+                    try { Directory.CreateDirectory(dir); } catch { }
+                }
+                return dir;
             }
         }
+
+        private static string StateFile { get { return Path.Combine(StateDir, "update_state.txt"); } }
 
         public static void MarkVersionIgnored(string tagName)
         {
             try
             {
-                File.WriteAllText(IgnoredVersionFile, tagName + "|" + DateTime.UtcNow.ToString("o"));
+                File.WriteAllText(StateFile, tagName + "|" + DateTime.UtcNow.ToString("o"));
+            }
+            catch { /* best-effort */ }
+        }
+
+        /// <summary>Marcheaza versiunea ca tentativa de update — pentru anti-bucla pe 6h.</summary>
+        public static void MarkVersionTried(string tagName)
+        {
+            try
+            {
+                File.WriteAllText(StateFile, tagName + "|" + DateTime.UtcNow.ToString("o"));
             }
             catch { /* best-effort */ }
         }
@@ -66,15 +85,15 @@ namespace PredareAmef.Services
         {
             try
             {
-                if (!File.Exists(IgnoredVersionFile)) return false;
-                string s = File.ReadAllText(IgnoredVersionFile).Trim();
+                if (!File.Exists(StateFile)) return false;
+                string s = File.ReadAllText(StateFile).Trim();
                 var parts = s.Split('|');
                 if (parts.Length != 2) return false;
                 if (!string.Equals(parts[0], tagName, StringComparison.OrdinalIgnoreCase)) return false;
                 DateTime ts;
                 if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind, out ts)) return false;
-                // Skip prompt timp de 24h pentru aceeasi versiune ignorata/esuata
-                return (DateTime.UtcNow - ts).TotalHours < 24;
+                // Skip prompt timp de 6h pentru aceeasi versiune (ignorata, esuata sau in progres)
+                return (DateTime.UtcNow - ts).TotalHours < 6;
             }
             catch { return false; }
         }

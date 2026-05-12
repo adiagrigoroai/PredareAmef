@@ -106,6 +106,10 @@ namespace PredareAmef.Forms
             progress.Visible = true;
             lblStatus.Text = "Descărcare în curs...";
 
+            // Marchez "tried" PREVENTIV — daca update-ul esueaza (copy locked etc.),
+            // nu vom mai prompt-ui aceeasi versiune in urmatoarele 6h.
+            UpdateService.MarkVersionTried(_info.TagName);
+
             string newExe = await Task.Run(() => UpdateService.DownloadUpdate(_info, _token, (rcv, total) =>
             {
                 if (total > 0)
