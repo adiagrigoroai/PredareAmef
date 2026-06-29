@@ -140,13 +140,23 @@ namespace PredareAmef.Services
                     }
                 }
 
-                // ── Pas 5: Export ANAF .p7b oficial pentru luna curenta + 2 anterioare ──
-                if (opt.Step6_ExportXml && !ct.IsCancellationRequested)
+                // ── Pas 5: Export ANAF .p7b oficial — perioada custom SAU luna curenta + 2 anterioare ──
+                // Ruleaza daca user bifa Step6 SAU AnafCustomDateRange (independent).
+                if ((opt.Step6_ExportXml || opt.AnafCustomDateRange) && !ct.IsCancellationRequested)
                 {
-                    log.Progress(5, TOTAL_STEPS, "Export ANAF .p7b luna curenta + 2 anterioare");
                     string anafDir = Path.Combine(OutputDir, "ANAF_p7b");
                     var xml = new XmlExporter();
-                    LastAnafFileCount = xml.ExportLastNMonths(dude, anafDir, monthsBack: 2, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    if (opt.AnafCustomDateRange)
+                    {
+                        log.Progress(5, TOTAL_STEPS, "Export ANAF .p7b perioada custom (" +
+                            opt.AnafDateFrom.ToString("yyyy-MM-dd") + " → " + opt.AnafDateTo.ToString("yyyy-MM-dd") + ")");
+                        LastAnafFileCount = xml.ExportDateRange(dude, anafDir, opt.AnafDateFrom, opt.AnafDateTo, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    }
+                    else
+                    {
+                        log.Progress(5, TOTAL_STEPS, "Export ANAF .p7b luna curenta + 2 anterioare");
+                        LastAnafFileCount = xml.ExportLastNMonths(dude, anafDir, monthsBack: 2, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    }
                 }
 
                 // ── Pas 6: Antet → .txt ──
@@ -204,13 +214,22 @@ namespace PredareAmef.Services
 
                 string serialTag = SafeName(info.SerialNumber);
 
-                // Pas 5 — ANAF
+                // Pas 5 — ANAF (custom range sau default 3 luni)
                 if (!ct.IsCancellationRequested)
                 {
-                    log.Progress(1, 2, "Export ANAF .p7b luna curenta + 2 anterioare");
                     string anafDir = Path.Combine(OutputDir, "ANAF_p7b");
                     var xml = new XmlExporter();
-                    LastAnafFileCount = xml.ExportLastNMonths(dude, anafDir, monthsBack: 2, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    if (opt.AnafCustomDateRange)
+                    {
+                        log.Progress(1, 2, "Export ANAF .p7b perioada custom (" +
+                            opt.AnafDateFrom.ToString("yyyy-MM-dd") + " → " + opt.AnafDateTo.ToString("yyyy-MM-dd") + ")");
+                        LastAnafFileCount = xml.ExportDateRange(dude, anafDir, opt.AnafDateFrom, opt.AnafDateTo, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    }
+                    else
+                    {
+                        log.Progress(1, 2, "Export ANAF .p7b luna curenta + 2 anterioare");
+                        LastAnafFileCount = xml.ExportLastNMonths(dude, anafDir, monthsBack: 2, cif: SafeName(info.TaxNumber), log: log, ct: ct);
+                    }
                 }
 
                 // Pas 6 — antet (re-scriem si fisierul de antet ca sa fie consistenta)

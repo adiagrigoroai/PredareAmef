@@ -36,6 +36,11 @@ namespace PredareAmef.Forms
         private System.Windows.Forms.CheckBox chkStep5;
         private System.Windows.Forms.CheckBox chkStep6;
         private System.Windows.Forms.CheckBox chkStep7;
+        private System.Windows.Forms.CheckBox chkAnafCustom;
+        private System.Windows.Forms.Label lblAnafFrom;
+        private System.Windows.Forms.DateTimePicker dtpAnafFrom;
+        private System.Windows.Forms.Label lblAnafTo;
+        private System.Windows.Forms.DateTimePicker dtpAnafTo;
 
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.Button btnCancel;
@@ -74,6 +79,11 @@ namespace PredareAmef.Forms
             this.chkStep5 = new System.Windows.Forms.CheckBox();
             this.chkStep6 = new System.Windows.Forms.CheckBox();
             this.chkStep7 = new System.Windows.Forms.CheckBox();
+            this.chkAnafCustom = new System.Windows.Forms.CheckBox();
+            this.lblAnafFrom = new System.Windows.Forms.Label();
+            this.dtpAnafFrom = new System.Windows.Forms.DateTimePicker();
+            this.lblAnafTo = new System.Windows.Forms.Label();
+            this.dtpAnafTo = new System.Windows.Forms.DateTimePicker();
 
             this.btnStart = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
@@ -176,12 +186,17 @@ namespace PredareAmef.Forms
             // grpSteps
             this.grpSteps.Text = "3. Pasi predare (toti activi default)";
             this.grpSteps.Location = new System.Drawing.Point(12, 220);
-            this.grpSteps.Size = new System.Drawing.Size(860, 80);
+            this.grpSteps.Size = new System.Drawing.Size(860, 135);
             this.grpSteps.Controls.Add(this.chkStep1);
             this.grpSteps.Controls.Add(this.chkStep3);
             this.grpSteps.Controls.Add(this.chkStep5);
             this.grpSteps.Controls.Add(this.chkStep6);
             this.grpSteps.Controls.Add(this.chkStep7);
+            this.grpSteps.Controls.Add(this.chkAnafCustom);
+            this.grpSteps.Controls.Add(this.lblAnafFrom);
+            this.grpSteps.Controls.Add(this.dtpAnafFrom);
+            this.grpSteps.Controls.Add(this.lblAnafTo);
+            this.grpSteps.Controls.Add(this.dtpAnafTo);
 
             this.chkStep1.Text = "1+2. Dump FM raw → .bin (CMD 116)";
             this.chkStep1.Location = new System.Drawing.Point(15, 22);
@@ -208,9 +223,44 @@ namespace PredareAmef.Forms
             this.chkStep7.Size = new System.Drawing.Size(200, 24);
             this.chkStep7.Checked = true;
 
+            // chkAnafCustom — activeaza perioada custom pentru export ANAF .p7b
+            this.chkAnafCustom.Text = "5b. Export ANAF .p7b PERIOADA CUSTOM:";
+            this.chkAnafCustom.Location = new System.Drawing.Point(15, 80);
+            this.chkAnafCustom.Size = new System.Drawing.Size(290, 24);
+            this.chkAnafCustom.Checked = false;
+            this.chkAnafCustom.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.chkAnafCustom.ForeColor = System.Drawing.Color.FromArgb(180, 60, 0);
+            this.chkAnafCustom.CheckedChanged += new System.EventHandler(this.OnAnafCustomCheckedChanged);
+
+            this.lblAnafFrom.Text = "De la:";
+            this.lblAnafFrom.Location = new System.Drawing.Point(310, 84);
+            this.lblAnafFrom.Size = new System.Drawing.Size(45, 20);
+            this.lblAnafFrom.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+
+            this.dtpAnafFrom.Location = new System.Drawing.Point(360, 81);
+            this.dtpAnafFrom.Size = new System.Drawing.Size(130, 23);
+            this.dtpAnafFrom.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpAnafFrom.CustomFormat = "yyyy-MM-dd";
+            this.dtpAnafFrom.Value = new System.DateTime(2022, 1, 1);
+            this.dtpAnafFrom.MinDate = new System.DateTime(2018, 1, 1);
+            this.dtpAnafFrom.Enabled = false;
+
+            this.lblAnafTo.Text = "Pana la:";
+            this.lblAnafTo.Location = new System.Drawing.Point(500, 84);
+            this.lblAnafTo.Size = new System.Drawing.Size(55, 20);
+            this.lblAnafTo.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+
+            this.dtpAnafTo.Location = new System.Drawing.Point(560, 81);
+            this.dtpAnafTo.Size = new System.Drawing.Size(130, 23);
+            this.dtpAnafTo.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
+            this.dtpAnafTo.CustomFormat = "yyyy-MM-dd";
+            this.dtpAnafTo.Value = System.DateTime.Today;
+            this.dtpAnafTo.MaxDate = System.DateTime.Today.AddDays(1);
+            this.dtpAnafTo.Enabled = false;
+
             // btnStart
             this.btnStart.Text = "ÎNCEPE PREDARE MEMORIE";
-            this.btnStart.Location = new System.Drawing.Point(12, 310);
+            this.btnStart.Location = new System.Drawing.Point(12, 365);
             this.btnStart.Size = new System.Drawing.Size(380, 40);
             this.btnStart.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
             this.btnStart.BackColor = System.Drawing.Color.FromArgb(0, 120, 215);
@@ -220,7 +270,7 @@ namespace PredareAmef.Forms
 
             // btnCancel
             this.btnCancel.Text = "Anulează";
-            this.btnCancel.Location = new System.Drawing.Point(402, 310);
+            this.btnCancel.Location = new System.Drawing.Point(402, 365);
             this.btnCancel.Size = new System.Drawing.Size(110, 40);
             this.btnCancel.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.btnCancel.BackColor = System.Drawing.Color.FromArgb(200, 60, 60);
@@ -231,14 +281,14 @@ namespace PredareAmef.Forms
 
             // btnOpenOutput
             this.btnOpenOutput.Text = "Deschide folder output";
-            this.btnOpenOutput.Location = new System.Drawing.Point(522, 310);
+            this.btnOpenOutput.Location = new System.Drawing.Point(522, 365);
             this.btnOpenOutput.Size = new System.Drawing.Size(175, 40);
             this.btnOpenOutput.Click += new System.EventHandler(this.OnOpenOutput);
 
             // btnMulti — lansare modul multi-aparat
             this.btnMulti = new System.Windows.Forms.Button();
             this.btnMulti.Text = "Multi-aparat ▶";
-            this.btnMulti.Location = new System.Drawing.Point(707, 310);
+            this.btnMulti.Location = new System.Drawing.Point(707, 365);
             this.btnMulti.Size = new System.Drawing.Size(165, 40);
             this.btnMulti.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.btnMulti.BackColor = System.Drawing.Color.FromArgb(70, 90, 160);
@@ -248,19 +298,19 @@ namespace PredareAmef.Forms
             this.Controls.Add(this.btnMulti);
 
             // prg (overall)
-            this.prg.Location = new System.Drawing.Point(12, 360);
+            this.prg.Location = new System.Drawing.Point(12, 415);
             this.prg.Size = new System.Drawing.Size(860, 18);
             this.prg.Minimum = 0;
             this.prg.Maximum = 7;
 
             // lblStatus
             this.lblStatus.Text = "Gata.";
-            this.lblStatus.Location = new System.Drawing.Point(12, 382);
+            this.lblStatus.Location = new System.Drawing.Point(12, 437);
             this.lblStatus.Size = new System.Drawing.Size(860, 18);
             this.lblStatus.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
 
             // prgSub (fine-grained per step)
-            this.prgSub.Location = new System.Drawing.Point(12, 404);
+            this.prgSub.Location = new System.Drawing.Point(12, 459);
             this.prgSub.Size = new System.Drawing.Size(860, 14);
             this.prgSub.Minimum = 0;
             this.prgSub.Maximum = 100;
@@ -268,20 +318,20 @@ namespace PredareAmef.Forms
 
             // lblSubStatus
             this.lblSubStatus.Text = "";
-            this.lblSubStatus.Location = new System.Drawing.Point(12, 422);
+            this.lblSubStatus.Location = new System.Drawing.Point(12, 477);
             this.lblSubStatus.Size = new System.Drawing.Size(860, 18);
             this.lblSubStatus.ForeColor = System.Drawing.Color.DarkBlue;
 
             // rtbLog
-            this.rtbLog.Location = new System.Drawing.Point(12, 445);
-            this.rtbLog.Size = new System.Drawing.Size(860, 285);
+            this.rtbLog.Location = new System.Drawing.Point(12, 500);
+            this.rtbLog.Size = new System.Drawing.Size(860, 280);
             this.rtbLog.Font = new System.Drawing.Font("Consolas", 9F);
             this.rtbLog.ReadOnly = true;
 
             // MainForm
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(884, 745);
+            this.ClientSize = new System.Drawing.Size(884, 800);
             this.Controls.Add(this.grpConn);
             this.Controls.Add(this.grpOpt);
             this.Controls.Add(this.grpSteps);

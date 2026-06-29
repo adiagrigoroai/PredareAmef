@@ -245,6 +245,16 @@ namespace PredareAmef.Forms
             if (grpSteps != null) grpSteps.Text = "PASI PREDARE";
         }
 
+        // Toggle pickers ANAF custom: doar cand checkbox-ul "5b" e bifat
+        private void OnAnafCustomCheckedChanged(object sender, EventArgs e)
+        {
+            bool enabled = chkAnafCustom.Checked;
+            dtpAnafFrom.Enabled = enabled;
+            dtpAnafTo.Enabled = enabled;
+            // Auto-bifez Step6 daca user-ul vrea perioada custom (altfel n-are sens)
+            if (enabled && !chkStep6.Checked) chkStep6.Checked = true;
+        }
+
         private void OnLoad(object sender, EventArgs e)
         {
             cbCom.Items.Clear();
@@ -388,7 +398,10 @@ namespace PredareAmef.Forms
                 Step3_GenerateTxt = chkStep3.Checked,
                 Step5_PrintSummary = chkStep5.Checked,
                 Step6_ExportXml = chkStep6.Checked,
-                Step7_ExportHeader = chkStep7.Checked
+                Step7_ExportHeader = chkStep7.Checked,
+                AnafCustomDateRange = chkAnafCustom.Checked,
+                AnafDateFrom = dtpAnafFrom.Value.Date,
+                AnafDateTo = dtpAnafTo.Value.Date
             };
 
             if (opt.Transport == TransportKind.Serial && string.IsNullOrWhiteSpace(opt.ComPort))

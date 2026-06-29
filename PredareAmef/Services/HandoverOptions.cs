@@ -20,6 +20,13 @@ namespace PredareAmef.Services
         public bool Step6_ExportXml { get; set; } = true;
         public bool Step7_ExportHeader { get; set; } = true;
 
+        // Export ANAF .p7b — perioada custom (overrides default "3 luni" cu pivot).
+        // Daca AnafCustomDateRange = true, foloseste AnafDateFrom..AnafDateTo (luna cu luna).
+        // Daca false, foloseste comportamentul vechi (pivot + 2 luni anterioare).
+        public bool AnafCustomDateRange { get; set; } = false;
+        public DateTime AnafDateFrom { get; set; } = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-2);
+        public DateTime AnafDateTo { get; set; } = DateTime.Now;
+
         // Output
         public string OutputRoot { get; set; }
             = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);

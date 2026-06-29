@@ -3,7 +3,7 @@
 ; Rezultat: Output\PredareAmef_Setup_<versiune>.exe
 
 #define AppName        "PredareAmef"
-#define AppVersion     "1.2.0"
+#define AppVersion     "1.3.8"
 #define AppPublisher   "Qbiz"
 #define AppExeName     "PredareAmef.exe"
 #define ReleaseDir     "..\PredareAmef\bin\Release"

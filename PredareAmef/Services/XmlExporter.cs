@@ -103,6 +103,67 @@ namespace PredareAmef.Services
         }
 
         /// <summary>
+        /// Export .p7b pe interval custom (luna cu luna intre dateFrom si dateTo inclusiv).
+        /// Folosit cand userul vrea perioada specifica (ex: ianuarie 2022 - prezent).
+        /// </summary>
+        public int ExportDateRange(DudeClient dude, string outputDir, DateTime dateFrom, DateTime dateTo, string cif, ILogger log, CancellationToken ct = default(CancellationToken))
+        {
+            if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
+            if (dateFrom > dateTo) { var t = dateFrom; dateFrom = dateTo; dateTo = t; }
+
+            int totalFiles = 0;
+            int monthsExported = 0;
+            int monthsEmpty = 0;
+
+            // Itereaza luna cu luna de la dateFrom.Month → dateTo.Month
+            var cursor = new DateTime(dateFrom.Year, dateFrom.Month, 1);
+            var endMonth = new DateTime(dateTo.Year, dateTo.Month, 1);
+
+            log.Log("Export ANAF .p7b PERIOADA CUSTOM: " + dateFrom.ToString("yyyy-MM-dd") + " → " + dateTo.ToString("yyyy-MM-dd"), LogLevel.Info);
+
+            while (cursor <= endMonth && !ct.IsCancellationRequested)
+            {
+                var monthStart = cursor;
+                var monthEnd = cursor.AddMonths(1).AddSeconds(-1);
+
+                // Pentru prima luna respectam dateFrom (poate ziua 15, nu 1)
+                if (monthStart < dateFrom) monthStart = dateFrom;
+                // Pentru ultima luna respectam dateTo
+                if (monthEnd > dateTo) monthEnd = dateTo;
+
+                string monthLabel = cursor.ToString("yyyy-MM");
+                string subDir = Path.Combine(outputDir, monthLabel);
+                if (!Directory.Exists(subDir)) Directory.CreateDirectory(subDir);
+
+                log.Log("Export ANAF .p7b — luna " + monthLabel +
+                        " (" + monthStart.ToString("dd-MM-yy") + " → " + monthEnd.ToString("dd-MM-yy") + ")",
+                        LogLevel.Info);
+
+                int saved = DownloadMonth(dude, monthStart, monthEnd, subDir, log);
+                totalFiles += saved;
+
+                if (saved > 0)
+                {
+                    log.Log("  → " + saved + " fisiere .p7b pentru " + monthLabel, LogLevel.Success);
+                    monthsExported++;
+                }
+                else
+                {
+                    log.Log("  → 0 fisiere pentru " + monthLabel + " (fara Z in interval)", LogLevel.Debug);
+                    monthsEmpty++;
+                    try { Directory.Delete(subDir, false); } catch { }
+                }
+
+                cursor = cursor.AddMonths(1);
+            }
+
+            log.Log("Export ANAF total: " + totalFiles + " fisiere .p7b (" +
+                    monthsExported + " luni cu date, " + monthsEmpty + " luni goale) in " + outputDir,
+                    totalFiles > 0 ? LogLevel.Success : LogLevel.Warning);
+            return totalFiles;
+        }
+
+        /// <summary>
         /// Download .p7b pentru o luna intreaga via DUDE COM.
         /// DUDE auto-numeste fisierele {CUI}_Z{NNNN}.p7b in download_Path.
         /// Retry de 3 ori la eroare -100001 (I/O error) cu pauza intre tentative.
