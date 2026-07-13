@@ -51,6 +51,7 @@ namespace PredareAmef.Forms
         private System.Windows.Forms.RichTextBox rtbLog;
         private System.Windows.Forms.Button btnOpenOutput;
         private System.Windows.Forms.Button btnMulti;
+        private System.Windows.Forms.Button btnScan;
 
         private void InitializeComponent()
         {
@@ -152,6 +153,18 @@ namespace PredareAmef.Forms
             this.txtPort.Location = new System.Drawing.Point(330, 55);
             this.txtPort.Size = new System.Drawing.Size(60, 23);
             this.txtPort.Enabled = false;
+
+            // btnScan — Scan aparate + info detaliat (in grpConn, dreapta)
+            this.btnScan = new System.Windows.Forms.Button();
+            this.btnScan.Text = "🔍 Scan + Info aparat";
+            this.btnScan.Location = new System.Drawing.Point(420, 24);
+            this.btnScan.Size = new System.Drawing.Size(220, 55);
+            this.btnScan.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.btnScan.BackColor = System.Drawing.Color.FromArgb(0, 150, 100);
+            this.btnScan.ForeColor = System.Drawing.Color.White;
+            this.btnScan.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnScan.Click += new System.EventHandler(this.OnScanDevices);
+            this.grpConn.Controls.Add(this.btnScan);
 
             // grpOpt
             this.grpOpt.Text = "2. Identificare client + output";

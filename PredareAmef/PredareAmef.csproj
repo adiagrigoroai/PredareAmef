@@ -61,6 +61,13 @@
     <Compile Include="Services\MfPrinter.cs" />
     <Compile Include="Services\XmlExporter.cs" />
     <Compile Include="Services\HeaderReader.cs" />
+    <Compile Include="Services\DeviceInfoReader.cs" />
+    <Compile Include="Forms\DeviceInfoDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ScanDevicesDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Services\HandoverOrchestrator.cs" />
     <Compile Include="Services\DeviceScannerService.cs" />
     <Compile Include="Services\EmailService.cs" />

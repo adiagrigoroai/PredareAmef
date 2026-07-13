@@ -20,6 +20,30 @@ namespace PredareAmef.Services
             sb.AppendLine("Serial: " + (dude.SerialNumber ?? "-"));
             sb.AppendLine("FM nr: " + (dude.FmNumber ?? "-"));
             sb.AppendLine("Model: " + (dude.ModelName ?? "-"));
+
+            // CIF (TaxNumber) — citit via CMD 255 var "TaxNumber"
+            string cif = null;
+            try
+            {
+                cif = dude.ReadVar255("TaxNumber");
+                if (string.IsNullOrWhiteSpace(cif))
+                {
+                    // Fallback: CMD 123 param "1" — al 6-lea tab-field contine CIF/TaxNumber
+                    string o = "";
+                    if (dude.ExecuteCommand(123, "1\t", ref o) == 0)
+                    {
+                        var parts = (o ?? "").Split('\t');
+                        if (parts.Length >= 6)
+                        {
+                            cif = parts[5]?.Trim();
+                            if (cif != null && cif.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))
+                                cif = cif.Substring(4).Trim();
+                        }
+                    }
+                }
+            }
+            catch { }
+            sb.AppendLine("CIF: " + (string.IsNullOrWhiteSpace(cif) ? "-" : cif));
             sb.AppendLine();
             sb.AppendLine("--- LINII ANTET ---");
 

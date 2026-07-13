@@ -301,6 +301,27 @@ namespace PredareAmef.Forms
             using (var f = new MultiSessionForm()) { f.ShowDialog(this); }
         }
 
+        private void OnScanDevices(object sender, EventArgs e)
+        {
+            using (var dlg = new ScanDevicesDialog())
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Selected != null)
+                {
+                    // Auto-populeaza campurile aparatului selectat
+                    rbSerial.Checked = true;
+                    OnTransportChanged(this, EventArgs.Empty);
+                    int idx = cbCom.FindStringExact(dlg.Selected.ComPort);
+                    if (idx >= 0) cbCom.SelectedIndex = idx;
+                    idx = cbBaud.FindStringExact(dlg.Selected.Baud.ToString());
+                    if (idx >= 0) cbBaud.SelectedIndex = idx;
+                    if (!string.IsNullOrWhiteSpace(dlg.Selected.Firma))
+                        txtClient.Text = dlg.Selected.Firma;
+                    AppendLog("Aparat selectat: " + dlg.Selected.Display, LogLevel.Success);
+                }
+            }
+        }
+
+
         private void OnCancel(object sender, EventArgs e)
         {
             if (_cts == null || _cts.IsCancellationRequested) return;
