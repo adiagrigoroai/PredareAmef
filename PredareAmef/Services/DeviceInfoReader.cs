@@ -143,29 +143,49 @@ namespace PredareAmef.Services
             }
             catch { }
 
-            // CMD 253 sau ReadVar255 — coloane, Z left/total
-            info.PrintColumns = TryReadVar(dude, "PrinterColumns") ?? TryReadVar(dude, "Columns");
-            info.ZLeft = TryReadVar(dude, "ZLeft") ?? TryReadVar(dude, "ZRemaining");
-            info.ZTotal = TryReadVar(dude, "ZTotal") ?? TryReadVar(dude, "ZMax");
-            info.ExpiryDate = TryReadVar(dude, "ServiceExpiry") ?? TryReadVar(dude, "ExpiryDate");
+            // ReadVar255 — coloane, service expiry (nume corecte din protocol Datecs v2.10)
+            info.PrintColumns = TryReadVar(dude, "PrintColumns");
+            info.ExpiryDate = TryReadVar(dude, "ServiceDate");
 
-            // Retea & SIM
-            info.LocalIp = TryReadVar(dude, "LocalIP") ?? TryReadVar(dude, "IPAddress");
-            info.MacLan = TryReadVar(dude, "MACAddress") ?? TryReadVar(dude, "MAC");
-            info.AnafInterface = TryReadVar(dude, "ANAFInterface");
-            info.ModemModel = TryReadVar(dude, "ModemModel") ?? TryReadVar(dude, "Modem");
-            info.IccidSim = TryReadVar(dude, "SIMICCID") ?? TryReadVar(dude, "ICCID");
-            info.ImsiSim = TryReadVar(dude, "SIMIMSI") ?? TryReadVar(dude, "IMSI");
+            // CMD 68 — Number of remaining entries for Z-reports in FM
+            try
+            {
+                string o = "";
+                if (dude.ExecuteCommand(68, "", ref o) == 0)
+                {
+                    // Response: ErrorCode\tReportsLeft\t (returnat prin LastAnswer sau prin output)
+                    var parts = (o ?? "").Split('\t', ',');
+                    // Prima valoare non-zero, non-empty = ReportsLeft
+                    foreach (var p in parts)
+                    {
+                        var v = p?.Trim();
+                        if (!string.IsNullOrEmpty(v) && int.TryParse(v, out int n) && n > 0)
+                        {
+                            info.ZLeft = v;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch { }
+            info.ZTotal = "3650";   // constant pt majoritatea modelelor Datecs
+
+            // Retea (nume corecte din tabelul de parametri Datecs v2.10)
+            info.LocalIp = TryReadVar(dude, "LAN_IP");
+            info.MacLan = TryReadVar(dude, "LanMAC");
+            info.ModemModel = TryReadVar(dude, "ModemModel");
+            info.IccidSim = TryReadVar(dude, "SimICCID");
+            info.ImsiSim = TryReadVar(dude, "SimIMSI");
             info.Apn = TryReadVar(dude, "APN");
+            info.AnafInterface = string.IsNullOrEmpty(info.ModemModel) ? null : "GPRS (modem)";
 
             // Fiscalizare
-            info.VatPayer = TryReadVar(dude, "VATPayer");
-            info.SeriaFiscalaNUI = TryReadVar(dude, "FiscalNumber") ?? TryReadVar(dude, "NUI") ?? dude.FmNumber;
+            info.SeriaFiscalaNUI = dude.FmNumber;
             info.HeaderFirma = dude.ReadVar255("Header", 0);
             info.HeaderAdresa = dude.ReadVar255("Header", 1);
-            info.TaxNumberCIF = TryReadVar(dude, "TaxNumber");
+            info.TaxNumberCIF = TryReadVar(dude, "TAXnumber");
 
-            // Fallback CIF via CMD 123
+            // Fallback CIF via CMD 123 param "1"
             if (string.IsNullOrWhiteSpace(info.TaxNumberCIF))
             {
                 try
@@ -174,51 +194,60 @@ namespace PredareAmef.Services
                     if (dude.ExecuteCommand(123, "1\t", ref o) == 0)
                     {
                         var parts = (o ?? "").Split('\t');
-                        if (parts.Length >= 6)
-                        {
-                            var cif = parts[5]?.Trim();
-                            if (cif != null && cif.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))
-                                cif = cif.Substring(4).Trim();
-                            info.TaxNumberCIF = cif;
-                        }
+                        if (parts.Length >= 6) info.TaxNumberCIF = parts[5]?.Trim();
                         if (parts.Length >= 4 && string.IsNullOrEmpty(info.HeaderFirma))
                             info.HeaderFirma = SafeTrim(parts[3]);
                     }
                 }
                 catch { }
             }
+            // Curata prefixul "CIF:" daca exista
+            if (!string.IsNullOrEmpty(info.TaxNumberCIF) && info.TaxNumberCIF.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))
+                info.TaxNumberCIF = info.TaxNumberCIF.Substring(4).Trim();
 
-            // ANAF status
+            // Platitor TVA — inferat: daca TaxNumber incepe cu "RO" e cu TVA
+            if (!string.IsNullOrEmpty(info.TaxNumberCIF))
+                info.VatPayer = info.TaxNumberCIF.StartsWith("RO", StringComparison.OrdinalIgnoreCase) ? "DA" : "NU";
+
+            // ANAF status via CMD 71 param "2" (Information about connection with NRA server)
             try
             {
                 string o = "";
-                if (dude.ExecuteCommand(68, "", ref o) == 0)
+                if (dude.ExecuteCommand(71, "2\t", ref o) == 0)
                 {
-                    var parts = (o ?? "").Split('\t', ',');
+                    // Response: LastDate, NextDate, Zrep, ZErrnReport, ZErrCnt, ZErrStatus,
+                    //           SellErrnDoc, SellErrCnt, SellErrStatus, SellNumber, SellDate,
+                    //           LastErr, RemMinutes
+                    var parts = (o ?? "").Split('\t');
                     if (parts.Length >= 1) info.AnafLastTx = SafeTrim(parts[0]);
-                    if (parts.Length >= 2) info.AnafLastZ = SafeTrim(parts[1]);
-                    if (parts.Length >= 3) info.AnafStatus = SafeTrim(parts[2]);
-                    if (parts.Length >= 4) info.AnafErrorCode = SafeTrim(parts[3]);
+                    if (parts.Length >= 3) info.AnafLastZ = SafeTrim(parts[2]);
+                    if (parts.Length >= 12)
+                    {
+                        string err = SafeTrim(parts[11]);
+                        info.AnafErrorCode = err ?? "0";
+                        info.AnafStatus = (err == null || err == "0") ? "✔ TRIMIS OK" : "✗ EROARE";
+                    }
+                    else
+                    {
+                        info.AnafStatus = "✔ TRIMIS";
+                        info.AnafErrorCode = "0";
+                    }
                 }
             }
             catch { }
 
-            // Ultimul bon / Z
+            // Ultimul bon / Raport Z via CMD 123 param "3" (Last fiscal receipt)
             try
             {
                 string o = "";
-                if (dude.ExecuteCommand(72, "", ref o) == 0)
+                if (dude.ExecuteCommand(123, "3\t", ref o) == 0)
                 {
-                    var parts = (o ?? "").Split('\t', ',');
+                    // Response: BonFiscal, DateBonFiscal, Znumber, Zdate
+                    var parts = (o ?? "").Split('\t');
                     if (parts.Length >= 1) info.LastBonNr = SafeTrim(parts[0]);
                     if (parts.Length >= 2) info.LastBonDate = SafeTrim(parts[1]);
-                }
-                o = "";
-                if (dude.ExecuteCommand(71, "", ref o) == 0)
-                {
-                    var parts = (o ?? "").Split('\t', ',');
-                    if (parts.Length >= 1) info.LastZNr = SafeTrim(parts[0]);
-                    if (parts.Length >= 2) info.LastZDate = SafeTrim(parts[1]);
+                    if (parts.Length >= 3) info.LastZNr = SafeTrim(parts[2]);
+                    if (parts.Length >= 4) info.LastZDate = SafeTrim(parts[3]);
                 }
             }
             catch { }

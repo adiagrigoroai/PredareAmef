@@ -8,5 +8,5 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCopyright("Copyright IT Smart Retail 2026")]
 [assembly: ComVisible(false)]
 [assembly: Guid("a1b2c3d4-e5f6-4789-a1b2-c3d4e5f67890")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.4.1.0")]
+[assembly: AssemblyFileVersion("1.4.1.0")]
