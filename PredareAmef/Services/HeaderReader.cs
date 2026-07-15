@@ -21,26 +21,43 @@ namespace PredareAmef.Services
             sb.AppendLine("FM nr: " + (dude.FmNumber ?? "-"));
             sb.AppendLine("Model: " + (dude.ModelName ?? "-"));
 
-            // CIF (TaxNumber) — citit via CMD 255 var "TaxNumber"
+            // CIF — nume corect var din protocol Datecs v2.10: "TAXnumber" (nu TaxNumber)
             string cif = null;
             try
             {
-                cif = dude.ReadVar255("TaxNumber");
+                cif = dude.ReadVar255("TAXnumber");
                 if (string.IsNullOrWhiteSpace(cif))
                 {
-                    // Fallback: CMD 123 param "1" — al 6-lea tab-field contine CIF/TaxNumber
+                    // Fallback 1: CMD 99 (Reading the programmed TAX number)
+                    string o = "";
+                    if (dude.ExecuteCommand(99, "", ref o) == 0)
+                    {
+                        var parts = (o ?? "").Split('\t');
+                        // Response: ErrorCode\tTAXnumber\t
+                        foreach (var p in parts)
+                        {
+                            var v = p?.Trim();
+                            if (!string.IsNullOrEmpty(v) && v != "0" && v.Length >= 8)
+                            {
+                                cif = v;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (string.IsNullOrWhiteSpace(cif))
+                {
+                    // Fallback 2: CMD 123 param "1" — al 6-lea tab-field
                     string o = "";
                     if (dude.ExecuteCommand(123, "1\t", ref o) == 0)
                     {
                         var parts = (o ?? "").Split('\t');
-                        if (parts.Length >= 6)
-                        {
-                            cif = parts[5]?.Trim();
-                            if (cif != null && cif.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))
-                                cif = cif.Substring(4).Trim();
-                        }
+                        if (parts.Length >= 6) cif = parts[5]?.Trim();
                     }
                 }
+                // Curata prefix "CIF:" daca exista
+                if (!string.IsNullOrEmpty(cif) && cif.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))
+                    cif = cif.Substring(4).Trim();
             }
             catch { }
             sb.AppendLine("CIF: " + (string.IsNullOrWhiteSpace(cif) ? "-" : cif));
