@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -21,6 +21,10 @@ namespace PredareAmef.Services
         public string Error { get; set; } = "";
         public int AnafFileCount { get; set; } = -1;   // -1 = neexecutat, 0 = esuat, >0 = OK
         public bool NeedsAnafRetry => AnafFileCount == 0;
+
+        /// <summary>Pasul la care se afla si cate sunt in total, pentru progresul fin.</summary>
+        public int Pas { get; set; }
+        public int Pasi { get; set; } = 1;
     }
 
     /// <summary>
@@ -33,6 +37,9 @@ namespace PredareAmef.Services
         public List<SessionStatus> Statuses { get; private set; } = new List<SessionStatus>();
 
         public delegate void StatusCb(SessionStatus s);
+
+        /// <summary>O linie de jurnal de la un aparat anume.</summary>
+        public delegate void LogCb(SessionStatus s, string mesaj, LogLevel nivel);
 
         /// <summary>
         /// Pregateste folderele si lista de sesiuni. Apelat sincron, returneaza lista live
@@ -59,7 +66,7 @@ namespace PredareAmef.Services
         /// Lanseaza tasks paralele (max N) si actualizeaza Statuses in-place.
         /// Blocheaza thread-ul apelant pana cand toate sesiunile s-au incheiat.
         /// </summary>
-        public void RunSessions(HandoverOptions baseOpt, int maxParallel, string emailNotify, StatusCb onUpdate, CancellationToken ct)
+        public void RunSessions(HandoverOptions baseOpt, int maxParallel, string emailNotify, StatusCb onUpdate, CancellationToken ct, LogCb onLog = null)
         {
             if (maxParallel < 1) maxParallel = 1;
             using (var sem = new SemaphoreSlim(maxParallel, maxParallel))
@@ -80,7 +87,7 @@ namespace PredareAmef.Services
                                 onUpdate?.Invoke(sLocal);
                                 return;
                             }
-                            RunOne(sLocal, baseOpt, emailNotify, onUpdate, ct);
+                            RunOne(sLocal, baseOpt, emailNotify, onUpdate, ct, onLog);
                         }
                         finally
                         {
@@ -92,11 +99,11 @@ namespace PredareAmef.Services
             }
         }
 
-        private void RunOne(SessionStatus s, HandoverOptions baseOpt, string emailNotify, StatusCb onUpdate, CancellationToken ct)
+        private void RunOne(SessionStatus s, HandoverOptions baseOpt, string emailNotify, StatusCb onUpdate, CancellationToken ct, LogCb onLog = null)
         {
             s.Status = "ruleaza"; s.Progress = 0; onUpdate?.Invoke(s);
 
-            var opt = CloneOptions(baseOpt);
+            var opt = baseOpt.Copie();
             opt.Transport = TransportKind.Serial;
             opt.ComPort   = s.Device.ComPort;
             opt.BaudRate  = s.Device.Baud;
@@ -108,14 +115,23 @@ namespace PredareAmef.Services
             opt.PrescannedFmNum  = s.Device.FmNum;
 
             var logger = new ActionLogger(
-                (msg, lvl) => { /* per-device log scris in fisier de orchestrator */ },
+                (msg, lvl) => onLog?.Invoke(s, msg, lvl),
                 (step, total, name) =>
                 {
-                    s.Progress = total > 0 ? (100 * step) / total : 0;
+                    s.Pas = step;
+                    s.Pasi = total > 0 ? total : 1;
+                    s.Progress = Procent(s, 0, 0);
                     if (!string.IsNullOrEmpty(name)) s.Status = name;
+                    s.SubLabel = "";
                     onUpdate?.Invoke(s);
+                    onLog?.Invoke(s, ">>> Pas " + step + "/" + total + ": " + name, LogLevel.Info);
                 },
-                (cur, total, label) => { s.SubLabel = label ?? ""; onUpdate?.Invoke(s); }
+                (cur, total, label) =>
+                {
+                    s.SubLabel = label ?? "";
+                    s.Progress = Procent(s, cur, total);
+                    onUpdate?.Invoke(s);
+                }
             );
 
             try
@@ -220,23 +236,20 @@ namespace PredareAmef.Services
             catch { return ""; }
         }
 
-        private static HandoverOptions CloneOptions(HandoverOptions src)
+        /// <summary>
+        /// Cat la suta din toata predarea s-a facut: pasii incheiati plus cat s-a citit
+        /// din pasul de acum. Fara partea din urma, bara ar sta pe loc minute intregi,
+        /// cat tine citirea memoriei, si ar sari apoi dintr-o data.
+        /// </summary>
+        private static int Procent(SessionStatus s, long cur, long total)
         {
-            return new HandoverOptions
-            {
-                Transport = src.Transport,
-                ComPort   = src.ComPort,
-                BaudRate  = src.BaudRate,
-                LanIp     = src.LanIp,
-                LanPort   = src.LanPort,
-                Step1_DumpFm = src.Step1_DumpFm,
-                Step3_GenerateTxt = src.Step3_GenerateTxt,
-                Step5_PrintSummary = src.Step5_PrintSummary,
-                Step6_ExportXml = src.Step6_ExportXml,
-                Step7_ExportHeader = src.Step7_ExportHeader,
-                OutputRoot = src.OutputRoot,
-                ClientName = src.ClientName
-            };
+            double inauntru = total > 0 ? (double)cur / total : 0;
+            if (inauntru < 0) inauntru = 0;
+            if (inauntru > 1) inauntru = 1;
+            double p = 100.0 * (s.Pas + inauntru) / (s.Pasi > 0 ? s.Pasi : 1);
+            if (p < 0) p = 0;
+            if (p > 100) p = 100;
+            return (int)p;
         }
 
         private static string SafeName(string s)

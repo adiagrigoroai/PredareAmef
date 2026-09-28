@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
@@ -67,6 +68,58 @@ namespace PredareAmef.Ui
         {
             using (var g = CreateGraphics())
                 Width = TextRenderer.MeasureText(g, Text, Font).Width + 22;
+        }
+    }
+
+    /// <summary>
+    /// Rotita care se invarte cat timp aplicatia cauta ceva. Se opreste singura cand
+    /// nu e vizibila, ca sa nu tina calculatorul ocupat degeaba.
+    /// </summary>
+    internal class Rotita : Control
+    {
+        private readonly Timer _ceas = new Timer { Interval = 40 };
+        private float _unghi;
+
+        public Color Culoare { get; set; } = Paleta.Accent;
+        public float Grosime { get; set; } = 3f;
+
+        public Rotita()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint |
+                     ControlStyles.SupportsTransparentBackColor, true);
+            BackColor = Color.Transparent;
+            Size = new Size(34, 34);
+            _ceas.Tick += (s, e) => { _unghi = (_unghi + 14f) % 360f; Invalidate(); };
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (Visible) _ceas.Start(); else _ceas.Stop();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _ceas.Dispose();
+            base.Dispose(disposing);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            float m = Grosime / 2f + 1f;
+            var r = new RectangleF(m, m, Width - 2 * m, Height - 2 * m);
+            if (r.Width <= 0 || r.Height <= 0) return;
+
+            using (var sters = new Pen(Color.FromArgb(0x60, Culoare), Grosime))
+                e.Graphics.DrawEllipse(sters, r);
+            using (var viu = new Pen(Culoare, Grosime))
+            {
+                viu.StartCap = LineCap.Round;
+                viu.EndCap = LineCap.Round;
+                e.Graphics.DrawArc(viu, r, _unghi, 100f);
+            }
         }
     }
 

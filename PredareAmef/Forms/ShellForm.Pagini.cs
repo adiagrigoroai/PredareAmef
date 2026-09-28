@@ -367,11 +367,15 @@ namespace PredareAmef.Forms
                     {
                         try { BeginInvoke((MethodInvoker)delegate { ActualizeazaProgresul(s); }); }
                         catch { }
-                    }, ct);
+                    }, ct, (s, mesaj, nivel) =>
+                    {
+                        try { BeginInvoke((MethodInvoker)delegate { ScrieInJurnal(s, mesaj, nivel); }); }
+                        catch { }
+                    });
                 }
                 catch (Exception ex)
                 {
-                    try { BeginInvoke((MethodInvoker)delegate { ScrieInJurnal("Eroare: " + ex.Message, Paleta.EroareFundal); }); }
+                    try { BeginInvoke((MethodInvoker)delegate { ScrieInJurnal(null, "Eroare: " + ex.Message, LogLevel.Error); }); }
                     catch { }
                 }
                 try
@@ -471,15 +475,32 @@ namespace PredareAmef.Forms
             int gata = _runner.Statuses.Count(x => x.Done);
             _lblStareRulare.Text = _runner.Statuses.Count + " aparate · " + gata + " gata";
 
-            ScrieInJurnal(DateTime.Now.ToString("HH:mm:ss") + "  " + s.Device.Serie + " — " + (s.SubLabel ?? s.Status),
-                s.Done && s.Success ? Color.FromArgb(0x7A, 0xDF, 0xB4) : Paleta.TextPeInchis);
         }
 
-        private void ScrieInJurnal(string text, Color culoare)
+        /// <summary>
+        /// O linie de jurnal, ca in aplicatia veche: ora, aparatul (cand sunt mai multe)
+        /// si mesajul, colorat dupa nivel. Sub-progresul nu ajunge aici, ca sa nu se umple
+        /// jurnalul cu sute de linii de KB pe secunda.
+        /// </summary>
+        private void ScrieInJurnal(SessionStatus s, string mesaj, LogLevel nivel)
         {
+            Color culoare;
+            switch (nivel)
+            {
+                case LogLevel.Success: culoare = Color.FromArgb(0x6F, 0xD8, 0xA8); break;
+                case LogLevel.Warning: culoare = Color.FromArgb(0xF0, 0xB4, 0x5E); break;
+                case LogLevel.Error: culoare = Color.FromArgb(0xF2, 0x8B, 0x82); break;
+                case LogLevel.Debug: culoare = Color.FromArgb(0x7F, 0x93, 0xA6); break;
+                default: culoare = Paleta.TextPeInchis; break;
+            }
+
+            string cap = "[" + DateTime.Now.ToString("HH:mm:ss") + "] ";
+            if (s != null && _runner != null && _runner.Statuses.Count > 1)
+                cap += s.Device.Serie + "  ";
+
             _jurnal.SelectionStart = _jurnal.TextLength;
             _jurnal.SelectionColor = culoare;
-            _jurnal.AppendText(text + Environment.NewLine);
+            _jurnal.AppendText(cap + mesaj + Environment.NewLine);
             _jurnal.SelectionStart = _jurnal.TextLength;
             _jurnal.ScrollToCaret();
         }

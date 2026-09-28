@@ -68,6 +68,16 @@ namespace PredareAmef.Services
 
         /// <summary>Imprimanta de etichete; gol = cea implicita a calculatorului.</summary>
         public string ImprimantaEtichete { get; set; } = "";
+
+        /// <summary>
+        /// O copie a tuturor optiunilor. Se face camp cu camp de catre runtime, nu de mana:
+        /// o copie scrisa de mana uita campurile adaugate mai tarziu, si asa s-au pierdut
+        /// odata procesul verbal si etichetele.
+        /// </summary>
+        public HandoverOptions Copie()
+        {
+            return (HandoverOptions)MemberwiseClone();
+        }
     }
 
     public sealed class DeviceInfo

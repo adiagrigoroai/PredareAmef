@@ -28,7 +28,8 @@ namespace PredareAmef.Forms
         private readonly DeviceScannerService _scanner = new DeviceScannerService();
         private List<ScannedDevice> _aparate = new List<ScannedDevice>();
         private readonly Dictionary<string, CheckBox> _bifeAparate = new Dictionary<string, CheckBox>();
-        private Panel _listaAparate;
+        private Panel _listaAparate, _zonaCautare;
+        private Label _lblPortCautat;
         private Label _lblSubtitluAparate, _lblNrPorturi, _lblNrAparate, _lblNrZ;
         private Buton _btnScan, _btnContinua;
         private CancellationTokenSource _ctsScan;
@@ -368,6 +369,39 @@ namespace PredareAmef.Forms
             _listaAparate = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Paleta.Card, Padding = new Padding(0, 40, 0, 8) };
             Paleta.FaraPalpaire(_listaAparate);
 
+            // Peste lista, cat tine cautarea: altfel ecranul pare inghetat un minut.
+            _zonaCautare = new Panel { Dock = DockStyle.Fill, BackColor = Paleta.Card, Visible = false };
+            Paleta.FaraPalpaire(_zonaCautare);
+            var rotita = new Rotita();
+            var lblCaut = new Label
+            {
+                Text = "Caut aparate pe porturile seriale...",
+                Font = Paleta.CorpTare,
+                ForeColor = Paleta.Text,
+                AutoSize = true,
+                BackColor = Color.Transparent
+            };
+            _lblPortCautat = new Label
+            {
+                Text = "",
+                Font = Paleta.Mic,
+                ForeColor = Paleta.TextSecundar,
+                AutoSize = true,
+                BackColor = Color.Transparent
+            };
+            _zonaCautare.Controls.AddRange(new Control[] { rotita, lblCaut, _lblPortCautat });
+            _zonaCautare.Resize += (s, e) =>
+            {
+                int mijloc = _zonaCautare.Width / 2;
+                int sus = Math.Max(40, _zonaCautare.Height / 2 - 60);
+                rotita.Location = new Point(mijloc - rotita.Width / 2, sus);
+                lblCaut.Location = new Point(mijloc - lblCaut.Width / 2, sus + 50);
+                _lblPortCautat.Location = new Point(mijloc - _lblPortCautat.Width / 2, sus + 76);
+            };
+            _lblPortCautat.TextChanged += (s, e) =>
+                _lblPortCautat.Location = new Point(_zonaCautare.Width / 2 - _lblPortCautat.Width / 2, _lblPortCautat.Top);
+
+            cardLista.Controls.Add(_zonaCautare);
             cardLista.Controls.Add(_listaAparate);
             cardLista.Controls.Add(capLista);
 
@@ -420,9 +454,19 @@ namespace PredareAmef.Forms
             _listaAparate.Controls.Clear();
             _bifeAparate.Clear();
 
+            _zonaCautare.Visible = true;
+            _zonaCautare.BringToFront();
+            _lblPortCautat.Text = "";
+
             _ctsScan = new CancellationTokenSource();
             var ct = _ctsScan.Token;
-            var log = new ActionLogger((m, l) => { }, null, null);
+            var log = new ActionLogger((m, l) =>
+            {
+                // portul incercat acum, ca sa se vada ca treaba merge inainte
+                if (l != LogLevel.Debug || !m.StartsWith("COM")) return;
+                try { BeginInvoke((MethodInvoker)delegate { _lblPortCautat.Text = m; }); }
+                catch { }
+            }, null, null);
 
             new Thread(() =>
             {
@@ -434,6 +478,7 @@ namespace PredareAmef.Forms
                     BeginInvoke((MethodInvoker)delegate
                     {
                         _aparate = gasite ?? new List<ScannedDevice>();
+                        _zonaCautare.Visible = false;
                         AratraAparate();
                         _ctsScan = null;
                         _btnScan.Enabled = true;
