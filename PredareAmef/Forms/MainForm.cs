@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Configuration;
 using System.Diagnostics;
 using System.Drawing;
@@ -14,6 +14,9 @@ namespace PredareAmef.Forms
     {
         private Thread _worker;
         private CancellationTokenSource _cts;
+
+        /// <summary>Ce s-a completat pentru procesul verbal; se tine minte intre predari.</summary>
+        private readonly HandoverOptions _pvOptiuni = new HandoverOptions();
 
         public MainForm()
         {
@@ -434,6 +437,14 @@ namespace PredareAmef.Forms
             {
                 MessageBox.Show(this, "Folderul de output nu exista.", "Validare", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return null;
+            }
+
+            // Procesul verbal de predare: motivul il stie doar omul, restul se ia din memorie.
+            using (var dlgPv = new PvDialog(_pvOptiuni))
+            {
+                if (dlgPv.ShowDialog(this) != DialogResult.OK) return null;
+                dlgPv.AplicaPeste(_pvOptiuni);
+                dlgPv.AplicaPeste(opt);
             }
 
             return opt;

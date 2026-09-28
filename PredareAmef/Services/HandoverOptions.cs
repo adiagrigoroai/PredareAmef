@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace PredareAmef.Services
 {
@@ -43,6 +43,25 @@ namespace PredareAmef.Services
         public string PrescannedFirma  { get; set; }
         public string PrescannedCif    { get; set; }
         public string PrescannedFmNum  { get; set; }
+
+        // ── Proces verbal de predare (generat de CRM la finalul predarii) ──
+
+        /// <summary>Daca la final cerem CRM-ului procesul verbal de predare a memoriei.</summary>
+        public bool GenereazaPv { get; set; } = false;
+
+        /// <summary>Motivul predarii, scris in document. Fara el nu are rost sa cerem documentul.</summary>
+        public string PvMotiv { get; set; } = "";
+
+        /// <summary>Cine preda — apare in document si in istoricul din CRM.</summary>
+        public string PvPredatDe { get; set; } = "";
+
+        /// <summary>"DA" daca s-a montat memorie noua.</summary>
+        public string PvMemorieNoua { get; set; } = "DA";
+
+        /// <summary>Unitatea de service, care alege sablonul: Retail / Suport / A.M.E.F.</summary>
+        public string PvUnitateService { get; set; } = "IT SMART RETAIL";
+
+        public string PvObservatii { get; set; } = "";
     }
 
     public sealed class DeviceInfo

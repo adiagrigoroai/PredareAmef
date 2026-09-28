@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading;
 
@@ -25,7 +25,73 @@ namespace PredareAmef.Services
         /// <summary>Numar fisiere .p7b descarcate la Pas 5 (ANAF). 0 = ANAF esuat.</summary>
         public int LastAnafFileCount { get; private set; } = -1;
 
+        /// <summary>Raportul sumar al memoriei, din care se iau datele pentru procesul verbal.</summary>
+        public string RaportSumarPath { get; private set; }
+
+        /// <summary>Documentul primit de la CRM la ultima predare, daca s-a cerut.</summary>
+        public string ProcesVerbalPath { get; private set; }
+
         public bool Run(HandoverOptions opt, ILogger log) => Run(opt, log, CancellationToken.None);
+
+        /// <summary>
+        /// Cere CRM-ului procesul verbal de predare si il salveaza langa fisierele aparatului.
+        ///
+        /// Datele care se citesc din memorie — numarul de rapoarte Z, totalul vanzarilor si
+        /// perioada de utilizare — se iau din raportul sumar tocmai generat: totalul vanzarilor
+        /// nu se poate afla altfel, comenzile obisnuite dau doar ziua curenta.
+        ///
+        /// Un esec aici nu strica predarea: fisierele sunt deja pe disc, iar documentul se
+        /// poate face si din pagina CRM.
+        /// </summary>
+        private void CereProcesVerbal(HandoverOptions opt, string serie, ILogger log)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(opt.PvMotiv))
+                {
+                    log.Log("Proces verbal: sarit — nu s-a completat motivul predarii.", LogLevel.Warning);
+                    return;
+                }
+
+                var date = PvDataExtractor.DinRaportFm(RaportSumarPath);
+                if (!date.AreDateleEsentiale)
+                    log.Log("Proces verbal: raportul memoriei nu a dat totalul vanzarilor; trimit ce am.", LogLevel.Warning);
+
+                var crm = new CrmPvService();
+                var cerere = new PvCerere
+                {
+                    SerieAmef = serie,
+                    MotivPredare = opt.PvMotiv,
+                    NumarRapoarteZ = date.NumarRapoarteZ,
+                    SumaTotala = date.SumaTotalaBruta,
+                    UtilizareStart = date.UtilizareStart,
+                    UtilizareEnd = date.UtilizareEnd,
+                    MemorieNoua = opt.PvMemorieNoua,
+                    PredatDe = opt.PvPredatDe,
+                    Observatii = opt.PvObservatii,
+                    UnitateService = opt.PvUnitateService,
+                };
+
+                log.Log("Proces verbal: cer documentul de la CRM (Z " + (date.NumarRapoarteZ ?? "?") +
+                        ", total " + (date.SumaTotala ?? "?") + " lei)...", LogLevel.Info);
+
+                string cale = crm.Genereaza(cerere, OutputDir);
+                if (cale != null)
+                {
+                    ProcesVerbalPath = cale;
+                    log.Log("Proces verbal salvat: " + Path.GetFileName(cale), LogLevel.Success);
+                }
+                else
+                {
+                    log.Log("Proces verbal: " + (crm.UltimaEroare ?? "nereusit") +
+                            " — fisierele predarii sunt salvate, documentul se poate face din CRM.", LogLevel.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Log("Proces verbal: " + ex.Message, LogLevel.Warning);
+            }
+        }
 
         public bool Run(HandoverOptions opt, ILogger log, CancellationToken ct)
         {
@@ -112,6 +178,7 @@ namespace PredareAmef.Services
                     string txtPath = Path.Combine(OutputDir, serialTag + "_FM_Z1-Z" + info.LastEmittedZ + ".txt");
                     var reader = new MfReader();
                     reader.ReadFmByZRange(dude, 1, info.LastEmittedZ, txtPath, detailed: false, log: log, ct: ct);
+                    RaportSumarPath = txtPath;
                 }
 
                 // ── Pas 4: Printare sumar pe aparat ──
@@ -175,6 +242,10 @@ namespace PredareAmef.Services
                     log.Log("Output partial: " + OutputDir, LogLevel.Warning);
                     return false;
                 }
+
+                // ── Procesul verbal de predare, facut de CRM ──
+                if (opt.GenereazaPv)
+                    CereProcesVerbal(opt, info.SerialNumber, log);
 
                 log.Progress(TOTAL_STEPS, TOTAL_STEPS, "Predare finalizata");
                 log.Log("=== PREDARE FINALIZATA ===", LogLevel.Success);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -23,6 +23,9 @@ namespace PredareAmef.Forms
         private RichTextBox rtbLog;
         private Label lblStatus;
         private CancellationTokenSource _scanCts, _runCts;
+
+        /// <summary>Ce s-a completat pentru procesul verbal; se tine minte intre rulari.</summary>
+        private readonly HandoverOptions _pvOptiuni = new HandoverOptions();
         private List<ScannedDevice> _scanned = new List<ScannedDevice>();
         private List<SessionStatus> _sessions = new List<SessionStatus>();
         private MultiSessionRunner _runner;
@@ -334,6 +337,14 @@ namespace PredareAmef.Forms
                 return;
             }
 
+            // Procesul verbal se face de CRM, dar motivul predarii il stie doar omul.
+            // Intrebam o data, inainte de pornire, si folosim raspunsul pentru toate aparatele.
+            using (var dlgPv = new PvDialog(_pvOptiuni))
+            {
+                if (dlgPv.ShowDialog(this) != DialogResult.OK) return;
+                dlgPv.AplicaPeste(_pvOptiuni);
+            }
+
             int parallel = (int)numParallel.Value;
             string emailNotify = txtEmail.Text.Trim();
 
@@ -350,7 +361,13 @@ namespace PredareAmef.Forms
                 Step3_GenerateTxt = true,
                 Step5_PrintSummary = true,
                 Step6_ExportXml = true,
-                Step7_ExportHeader = true
+                Step7_ExportHeader = true,
+                GenereazaPv = _pvOptiuni.GenereazaPv,
+                PvMotiv = _pvOptiuni.PvMotiv,
+                PvPredatDe = _pvOptiuni.PvPredatDe,
+                PvMemorieNoua = _pvOptiuni.PvMemorieNoua,
+                PvUnitateService = _pvOptiuni.PvUnitateService,
+                PvObservatii = _pvOptiuni.PvObservatii,
             };
 
             _runCts = new CancellationTokenSource();
