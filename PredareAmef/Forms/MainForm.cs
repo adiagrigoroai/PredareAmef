@@ -152,10 +152,19 @@ namespace PredareAmef.Forms
                     using (var dlg = new UpdateDialog(info, token))
                         dlg.ShowDialog(this);
                 }
+                else if (info == null || !info.Verificat)
+                {
+                    System.Windows.Forms.MessageBox.Show(this,
+                        "Nu am putut verifica actualizarile" +
+                        (info != null && !string.IsNullOrEmpty(info.Eroare) ? ": " + info.Eroare : ".") +
+                        "\r\nVersiunea de acum ramane v" + ver + ".",
+                        "Update", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                }
                 else
                 {
                     System.Windows.Forms.MessageBox.Show(this,
-                        "Folosesti deja cea mai recenta versiune (v" + ver + ").",
+                        "Folosesti cea mai recenta versiune (v" + ver + "). Pe GitHub este v" +
+                        info.LatestVersion + ".",
                         "Update", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
                 }
             };

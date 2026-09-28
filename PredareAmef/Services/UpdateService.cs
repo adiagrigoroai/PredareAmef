@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -34,6 +34,42 @@ namespace PredareAmef.Services
             public string AssetDownloadUrl { get; set; }
             public long AssetSize { get; set; }
             public bool HasUpdate { get { return LatestVersion != null && CurrentVersion != null && LatestVersion > CurrentVersion; } }
+
+            /// <summary>Daca am apucat sa intrebam GitHub si am inteles raspunsul.</summary>
+            public bool Verificat { get; set; }
+
+            /// <summary>De ce nu s-a putut verifica, ca sa nu spunem ca e totul in regula.</summary>
+            public string Eroare { get; set; }
+        }
+
+        /// <summary>
+        /// Cere raspunsul de la GitHub. Daca avem un jeton si el nu mai e bun, GitHub
+        /// raspunde 401 si pana acum verificarea se oprea acolo: pe calculatoarele unde
+        /// ramasese un jeton expirat in config nu se mai vedea nicio versiune noua.
+        /// Depozitul e public, asa ca mai incercam o data fara jeton.
+        /// </summary>
+        private static string CereCuSauFaraJeton(WebClient wc, string url, string jeton)
+        {
+            if (!string.IsNullOrWhiteSpace(jeton))
+            {
+                try
+                {
+                    wc.Headers["Authorization"] = "Bearer " + jeton;
+                    return wc.DownloadString(url);
+                }
+                catch (WebException ex)
+                {
+                    Trace.WriteLine("UpdateService: jetonul nu merge (" + ex.Message + "), incerc fara el.");
+                }
+            }
+            // Pentru a doua incercare facem un client nou: cel dinainte a ramas cu
+            // antetul de autorizare in el si GitHub raspunde tot cu refuz.
+            using (var curat = new WebClient())
+            {
+                curat.Headers.Add("User-Agent", USER_AGENT);
+                curat.Headers.Add("Accept", "application/vnd.github+json");
+                return curat.DownloadString(url);
+            }
         }
 
         public static Version GetCurrentVersion()
@@ -119,9 +155,7 @@ namespace PredareAmef.Services
                 {
                     wc.Headers.Add("User-Agent", USER_AGENT);
                     wc.Headers.Add("Accept", "application/vnd.github+json");
-                    if (!string.IsNullOrWhiteSpace(githubToken))
-                        wc.Headers.Add("Authorization", "Bearer " + githubToken);
-                    string json = wc.DownloadString(url);
+                    string json = CereCuSauFaraJeton(wc, url, githubToken);
                     var ser = new JavaScriptSerializer { MaxJsonLength = 10 * 1024 * 1024 };
                     var jo = ser.Deserialize<Dictionary<string, object>>(json);
                     info.TagName = GetString(jo, "tag_name");
@@ -140,6 +174,8 @@ namespace PredareAmef.Services
                             v.Build < 0 ? 0 : v.Build,
                             v.Revision < 0 ? 0 : v.Revision);
                     }
+
+                    info.Verificat = info.LatestVersion != null;
 
                     // Cauta asset-ul PredareAmef.exe
                     object assetsObj;
@@ -163,9 +199,27 @@ namespace PredareAmef.Services
             }
             catch (Exception ex)
             {
+                info.Eroare = ex.Message;
                 Trace.WriteLine("UpdateService.CheckForUpdate: " + ex.Message);
             }
             return info;
+        }
+
+        /// <summary>Daca jetonul mai e primit de GitHub. Intrebam o data, scurt.</summary>
+        private static bool JetonBun(string jeton)
+        {
+            try
+            {
+                using (var wc = new WebClient())
+                {
+                    wc.Headers.Add("User-Agent", USER_AGENT);
+                    wc.Headers.Add("Accept", "application/vnd.github+json");
+                    wc.Headers.Add("Authorization", "Bearer " + jeton);
+                    wc.DownloadString("https://api.github.com/repos/" + OWNER + "/" + REPO);
+                    return true;
+                }
+            }
+            catch { return false; }
         }
 
         /// <summary>
@@ -185,7 +239,9 @@ namespace PredareAmef.Services
                     wc.Headers.Add("User-Agent", USER_AGENT);
                     // Pentru asset-uri private/public: GitHub API cere Accept: application/octet-stream
                     wc.Headers.Add("Accept", "application/octet-stream");
-                    if (!string.IsNullOrWhiteSpace(githubToken))
+                    // Acelasi lucru ca la verificare: un jeton stricat ar opri descarcarea,
+                    // desi fisierul se poate lua si fara el.
+                    if (!string.IsNullOrWhiteSpace(githubToken) && JetonBun(githubToken))
                         wc.Headers.Add("Authorization", "Bearer " + githubToken);
 
                     if (onProgress != null)

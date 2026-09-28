@@ -83,6 +83,7 @@ namespace PredareAmef.Forms
             Arata("aparate");
             Paleta.PotrivesteFundalurile(this);
             Shown += (s, e) => PornesteScanare();
+            Shown += VerificaActualizariLaPornire;
         }
 
         // ══════════════════════════════════════════════════════════════
@@ -179,7 +180,74 @@ namespace PredareAmef.Forms
             });
             bara.Controls.Add(stare);
 
+            var lnkUpdate = new LinkLabel
+            {
+                Text = "Verifica actualizari",
+                Font = Paleta.Mic,
+                LinkColor = Paleta.Accent,
+                ActiveLinkColor = Paleta.AccentApasat,
+                LinkBehavior = LinkBehavior.HoverUnderline,
+                AutoSize = true,
+                BackColor = Color.Transparent,
+            };
+            lnkUpdate.LinkClicked += (s, e) => VerificaActualizari(true);
+            bara.Controls.Add(lnkUpdate);
+            bara.Resize += (s, e) => lnkUpdate.Location = new Point(18, Math.Max(292, bara.Height - 32));
+
             return bara;
+        }
+
+        /// <summary>
+        /// La pornire intrebam GitHub daca a aparut o versiune noua. Verificarea nu
+        /// tine aplicatia pe loc si nu spune nimic cand nu e nimic de spus.
+        /// </summary>
+        private async void VerificaActualizariLaPornire(object expeditor, EventArgs e)
+        {
+            Shown -= VerificaActualizariLaPornire;
+            string pornit = System.Configuration.ConfigurationManager.AppSettings["AutoCheckUpdate"];
+            if (!string.IsNullOrEmpty(pornit) && pornit.Equals("false", StringComparison.OrdinalIgnoreCase)) return;
+            await VerificaActualizari(false);
+        }
+
+        /// <summary>
+        /// Cauta o versiune noua. Cu <paramref name="spuneSiCandNuEste"/> raspunde si
+        /// cand nu e nimic nou sau cand verificarea a esuat — altfel omul apasa si nu
+        /// se intampla nimic.
+        /// </summary>
+        private async System.Threading.Tasks.Task VerificaActualizari(bool spuneSiCandNuEste)
+        {
+            string jeton = System.Configuration.ConfigurationManager.AppSettings["GitHubToken"] ?? "";
+            UpdateService.UpdateInfo info = null;
+            try
+            {
+                info = await System.Threading.Tasks.Task.Run(() => UpdateService.CheckForUpdate(jeton));
+            }
+            catch { }
+
+            if (info != null && info.HasUpdate && !string.IsNullOrEmpty(info.AssetDownloadUrl))
+            {
+                // Daca versiunea asta a fost respinsa de curand, nu o mai propunem la
+                // fiecare pornire; la apasarea pe legatura o aratam oricum.
+                if (!spuneSiCandNuEste && UpdateService.WasVersionRecentlyIgnored(info.TagName)) return;
+                using (var dlg = new UpdateDialog(info, jeton))
+                    if (dlg.ShowDialog(this) == DialogResult.Cancel)
+                        UpdateService.MarkVersionIgnored(info.TagName);
+                return;
+            }
+
+            if (!spuneSiCandNuEste) return;
+
+            if (info == null || !info.Verificat)
+                MessageBox.Show(this,
+                    "Nu am putut verifica actualizarile" +
+                    (info != null && !string.IsNullOrEmpty(info.Eroare) ? ": " + info.Eroare : ".") +
+                    "\r\nVersiunea de acum ramane v" + VersiuneaAplicatiei() + ".",
+                    "Actualizari", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            else
+                MessageBox.Show(this,
+                    "Folosesti cea mai recenta versiune (v" + VersiuneaAplicatiei() +
+                    "). Pe GitHub este v" + info.LatestVersion + ".",
+                    "Actualizari", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
