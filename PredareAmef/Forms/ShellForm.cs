@@ -128,7 +128,7 @@ namespace PredareAmef.Forms
             });
             bara.Controls.Add(new Label
             {
-                Text = "versiunea " + Application.ProductVersion,
+                Text = "versiunea " + VersiuneaAplicatiei(),
                 Font = Paleta.Mic,
                 ForeColor = Paleta.TextSters,
                 AutoSize = true,
@@ -141,16 +141,15 @@ namespace PredareAmef.Forms
             y += 4;
             bara.Controls.Add(FaRandMeniu("aparate", "Aparate", "aparate", ref y));
             bara.Controls.Add(FaRandMeniu("predare", "Predare", "predare", ref y));
-            bara.Controls.Add(FaRandMeniu("progres", "În lucru", "predare", ref y));
+            bara.Controls.Add(FaRandMeniu("progres", "În lucru", "lucru", ref y));
             bara.Controls.Add(FaRandMeniu("rezultate", "Rezultate", "rezultate", ref y));
 
             var stare = new Card
             {
                 Bounds = new Rectangle(16, 0, LatimeMeniu - 32, 66),
                 Raza = 12,
-                Anchor = AnchorStyles.Left | AnchorStyles.Bottom | AnchorStyles.Right
             };
-            stare.Location = new Point(16, ClientSize.Height - 86);
+            bara.Resize += (s, e) => stare.Location = new Point(16, Math.Max(220, bara.Height - 86));
             var punct = new Card
             {
                 Bounds = new Rectangle(14, 16, 8, 8),
@@ -180,6 +179,20 @@ namespace PredareAmef.Forms
             bara.Controls.Add(stare);
 
             return bara;
+        }
+
+        /// <summary>
+        /// Versiunea aplicatiei. Application.ProductVersion da versiunea gazdei cand
+        /// fereastra e pornita din alta parte (un script, un test).
+        /// </summary>
+        private static string VersiuneaAplicatiei()
+        {
+            try
+            {
+                var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                return v.Major + "." + v.Minor + "." + v.Build;
+            }
+            catch { return "-"; }
         }
 
         private Label Sectiune(string text, ref int y)
@@ -333,7 +346,7 @@ namespace PredareAmef.Forms
             Label l1, l2, l3;
             var c1 = CardCifra("Porturi scanate", "—", 0, 100, out l1);
             var c2 = CardCifra("Aparate găsite", "—", 0, 100, out l2);
-            var c3 = CardCifra("Rapoarte Z de citit", "—", 0, 100, out l3);
+            var c3 = CardCifra("Selectate pentru predare", "—", 0, 100, out l3);
             _lblNrPorturi = l1; _lblNrAparate = l2; _lblNrZ = l3;
             cifre.Controls.AddRange(new Control[] { c1, c2, c3 });
             cifre.Resize += (s, e) =>
@@ -350,7 +363,7 @@ namespace PredareAmef.Forms
             {
                 using (var p = new Pen(Paleta.MargineFina)) e.Graphics.DrawLine(p, 0, capLista.Height - 1, capLista.Width, capLista.Height - 1);
                 DeseneazaColoane(e.Graphics, capLista.Width, 12,
-                    new[] { "", "CLIENT", "SERIE / NUI", "MODEL · PORT", "RAPOARTE Z", "STARE" }, Paleta.TextSters, Paleta.MicTare);
+                    new[] { "", "CLIENT", "SERIE / NUI", "MODEL · PORT", "STARE" }, Paleta.TextSters, Paleta.MicTare);
             };
             _listaAparate = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Paleta.Card, Padding = new Padding(0, 40, 0, 8) };
             Paleta.FaraPalpaire(_listaAparate);
@@ -365,18 +378,36 @@ namespace PredareAmef.Forms
             return pag;
         }
 
-        /// <summary>Desenul capului de tabel: aceleasi latimi ca randurile de dedesubt.</summary>
+        /// <summary>
+        /// Unde incepe fiecare coloana, pentru o latime data. Capul de tabel si randurile
+        /// folosesc aceeasi socoteala, altfel nu se potrivesc intre ele.
+        /// </summary>
+        private static int[] Coloane(int latimeTotala)
+        {
+            const int marginea = 24, latimeBifa = 40, latimeStare = 100;
+            int disponibil = latimeTotala - 2 * marginea - latimeBifa - latimeStare;
+            if (disponibil < 320) disponibil = 320;
+
+            int client = disponibil * 46 / 100;
+            int serie = disponibil * 28 / 100;
+
+            int x0 = marginea;                          // bifa
+            int x1 = x0 + latimeBifa;                   // client
+            int x2 = x1 + client;                       // serie / NUI
+            int x3 = x2 + serie;                        // model · port
+            int x4 = latimeTotala - marginea - latimeStare;  // stare
+            return new[] { x0, x1, x2, x3, x4 };
+        }
+
+        /// <summary>Capul de tabel, desenat pe aceleasi coloane ca randurile.</summary>
         private static void DeseneazaColoane(Graphics g, int latimeTotala, int sus, string[] texte, Color culoare, Font font)
         {
-            int[] procente = { 44, 34, 20, 16, 14, 0 };
-            int x = 20;
-            int disponibil = latimeTotala - 40 - 44;
-            for (int i = 0; i < texte.Length; i++)
+            var x = Coloane(latimeTotala);
+            for (int i = 1; i < texte.Length && i < x.Length; i++)
             {
-                int latime = i == 0 ? 44 : (i == texte.Length - 1 ? 96 : disponibil * procente[i] / 100);
-                TextRenderer.DrawText(g, texte[i], font, new Rectangle(x, sus, latime, 18), culoare,
+                int pana = (i + 1 < x.Length ? x[i + 1] : latimeTotala - 24);
+                TextRenderer.DrawText(g, texte[i], font, new Rectangle(x[i], sus, pana - x[i] - 8, 18), culoare,
                     TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
-                x += latime + 12;
             }
         }
 
@@ -427,16 +458,8 @@ namespace PredareAmef.Forms
                 y += rand.Height;
             }
 
-            int totalZ = 0;
-            foreach (var a in _aparate)
-            {
-                int n;
-                if (int.TryParse((a.FmNum ?? "").Trim(), out n)) totalZ += n;
-            }
-
             _lblNrPorturi.Text = System.IO.Ports.SerialPort.GetPortNames().Length.ToString();
             _lblNrAparate.Text = _aparate.Count.ToString();
-            _lblNrZ.Text = totalZ > 0 ? totalZ.ToString("N0") : "—";
             _lblSubtitluAparate.Text = _aparate.Count == 0
                 ? "Niciun aparat găsit. Verificați cablul și porniți aparatul."
                 : _aparate.Count + " aparate găsite · " + _aparate.Count(x => x.Selected) + " selectate";
@@ -452,30 +475,32 @@ namespace PredareAmef.Forms
                 using (var p = new Pen(Paleta.MargineFina)) e.Graphics.DrawLine(p, 20, rand.Height - 1, rand.Width - 20, rand.Height - 1);
             };
 
-            var bifa = new CheckBox { Checked = a.Selected, Location = new Point(24, 24), Size = new Size(18, 18), BackColor = Color.Transparent };
+            var bifa = new CheckBox { Checked = a.Selected, Location = new Point(24, 24), Size = new Size(18, 18) };
             bifa.CheckedChanged += (s, e) => { a.Selected = bifa.Checked; ActualizeazaSelectatele(); };
             _bifeAparate[a.Serie] = bifa;
             rand.Controls.Add(bifa);
 
-            rand.Controls.Add(new Label { Text = a.Firma, Font = Paleta.CorpTare, ForeColor = Paleta.Text, AutoSize = true, Location = new Point(64, 14), BackColor = Color.Transparent });
-            rand.Controls.Add(new Label { Text = a.CIF, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true, Location = new Point(66, 35), BackColor = Color.Transparent });
-
-            var serie = new Label { Text = a.Serie, Font = Paleta.CorpTare, ForeColor = Paleta.Text, AutoSize = true, BackColor = Color.Transparent };
-            var nui = new Label { Text = "NUI " + a.FmNum, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true, BackColor = Color.Transparent };
-            var model = new Label { Text = a.Model, Font = Paleta.Corp, ForeColor = Paleta.Text, AutoSize = true, BackColor = Color.Transparent };
-            var port = new Label { Text = a.ComPort + " · " + a.Baud, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true, BackColor = Color.Transparent };
+            var firma = new Label { Text = a.Firma, Font = Paleta.CorpTare, ForeColor = Paleta.Text, AutoSize = true };
+            var cif = new Label { Text = a.CIF, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true };
+            var serie = new Label { Text = a.Serie, Font = Paleta.CorpTare, ForeColor = Paleta.Text, AutoSize = true };
+            var nui = new Label { Text = "NUI " + a.FmNum, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true };
+            var model = new Label { Text = a.Model, Font = Paleta.Corp, ForeColor = Paleta.Text, AutoSize = true };
+            var port = new Label { Text = a.ComPort + " · " + a.Baud, Font = Paleta.Mic, ForeColor = Paleta.TextSecundar, AutoSize = true };
             var stare = new Pastila { Text = "pregătit", Fundal = Paleta.ReusitFundal, Culoare = Paleta.Reusit, Anchor = AnchorStyles.Top | AnchorStyles.Right };
             stare.PotrivesteLatimea();
 
-            rand.Controls.AddRange(new Control[] { serie, nui, model, port, stare });
+            rand.Controls.AddRange(new Control[] { firma, cif, serie, nui, model, port, stare });
             rand.Resize += (s, e) =>
             {
-                int x = 64 + Math.Max(240, (rand.Width - 340) * 40 / 100);
-                serie.Location = new Point(x, 14);
-                nui.Location = new Point(x + 2, 35);
-                model.Location = new Point(x + 190, 14);
-                port.Location = new Point(x + 192, 35);
-                stare.Location = new Point(rand.Width - stare.Width - 24, 22);
+                var x = Coloane(rand.Width);
+                bifa.Location = new Point(x[0], 24);
+                firma.Location = new Point(x[1], 14);
+                cif.Location = new Point(x[1] + 2, 35);
+                serie.Location = new Point(x[2], 14);
+                nui.Location = new Point(x[2] + 2, 35);
+                model.Location = new Point(x[3], 14);
+                port.Location = new Point(x[3] + 2, 35);
+                stare.Location = new Point(x[4], 22);
             };
             rand.PerformLayout();
             if (rand.Width > 0) rand.OnResizePublic();
@@ -486,6 +511,7 @@ namespace PredareAmef.Forms
         {
             int n = _aparate.Count(x => x.Selected);
             if (_lblSelectate != null) _lblSelectate.Text = n + (n == 1 ? " aparat" : " aparate");
+            if (_lblNrZ != null) _lblNrZ.Text = n.ToString();
             if (_btnContinua != null) _btnContinua.Enabled = n > 0;
             if (_lblSubtitluAparate != null && _aparate.Count > 0)
                 _lblSubtitluAparate.Text = _aparate.Count + " aparate găsite · " + n + " selectate";

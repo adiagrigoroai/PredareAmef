@@ -14,7 +14,8 @@ namespace PredareAmef.Ui
         public Card()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint |
+                     ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
         }
 
@@ -42,7 +43,8 @@ namespace PredareAmef.Ui
         public Pastila()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint |
+                     ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
             Font = Paleta.MicTare;
             Height = 22;
@@ -86,7 +88,8 @@ namespace PredareAmef.Ui
         public BaraProgres()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint |
+                     ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
             Height = 8;
         }

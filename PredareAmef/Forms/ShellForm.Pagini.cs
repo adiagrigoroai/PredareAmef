@@ -99,11 +99,11 @@ namespace PredareAmef.Forms
             {
                 Location = new Point(24, y),
                 Multiline = true,
-                Height = 56,
+                Height = 96,
                 Font = Paleta.Corp,
                 BorderStyle = BorderStyle.FixedSingle,
             };
-            y += 68;
+            y += 108;
 
             var lblFolder = Eticheta("Folderul în care se salvează");
             lblFolder.Location = new Point(24, y); y += 22;
@@ -177,7 +177,7 @@ namespace PredareAmef.Forms
                 _cbImprimanta.Width = cardEtichete.Width - 44;
             };
 
-            var cardStart = new Card { Raza = 16, Height = 176, Fundal = Paleta.CardInchis, Contur = Color.Transparent };
+            var cardStart = new Card { Raza = 16, Height = 200, Fundal = Paleta.CardInchis, Contur = Color.Transparent };
             cardStart.Controls.Add(new Label { Text = "La pornire se execută", Font = Paleta.Mic, ForeColor = Paleta.TextPeInchis, AutoSize = true, Location = new Point(22, 20), BackColor = Color.Transparent });
             cardStart.Controls.Add(new Label
             {
@@ -188,7 +188,7 @@ namespace PredareAmef.Forms
                 Location = new Point(22, 44),
                 BackColor = Color.Transparent
             });
-            _lblSelectate = new Label { Text = "0 aparate", Font = new Font("Segoe UI Semibold", 13F), ForeColor = Color.White, AutoSize = true, Location = new Point(22, 92), BackColor = Color.Transparent };
+            _lblSelectate = new Label { Text = "0 aparate", Font = new Font("Segoe UI Semibold", 12F), ForeColor = Color.White, AutoSize = true, Location = new Point(22, 96), BackColor = Color.Transparent };
             cardStart.Controls.Add(_lblSelectate);
             var btnStart = new Buton { Text = "Pornește predarea", Fel = FelButon.PeInchis, Height = 46, Raza = 11 };
             btnStart.Click += (s, e) => PornestePredarea();
@@ -203,11 +203,11 @@ namespace PredareAmef.Forms
             {
                 int latimeDreapta = Math.Max(300, (int)(zona.Width * 0.36));
                 int latimeStanga = zona.Width - latimeDreapta - 18;
-                stanga.Bounds = new Rectangle(0, 0, latimeStanga, zona.Height - 4);
+                stanga.Bounds = new Rectangle(0, 0, latimeStanga, Math.Min(zona.Height - 4, 466));
                 int x = latimeStanga + 18;
                 cardPv.Bounds = new Rectangle(x, 0, latimeDreapta, 96);
                 cardEtichete.Bounds = new Rectangle(x, 112, latimeDreapta, 150);
-                cardStart.Bounds = new Rectangle(x, 278, latimeDreapta, 176);
+                cardStart.Bounds = new Rectangle(x, 278, latimeDreapta, 200);
             };
 
             pag.Controls.Add(zona);
@@ -244,19 +244,28 @@ namespace PredareAmef.Forms
             Paleta.FaraPalpaire(_listaProgres);
 
             var cardJurnal = new Card { Dock = DockStyle.Fill, Raza = 16, Fundal = Paleta.CardInchis, Contur = Color.Transparent };
+            var etJurnal = new Label
+            {
+                Text = "JURNAL",
+                Font = Paleta.MicTare,
+                ForeColor = Color.FromArgb(0x7F, 0x93, 0xA6),
+                BackColor = Paleta.CardInchis,
+                AutoSize = true,
+                Location = new Point(20, 15),
+            };
             _jurnal = new RichTextBox
             {
-                Dock = DockStyle.Fill,
                 BorderStyle = BorderStyle.None,
                 BackColor = Paleta.CardInchis,
                 ForeColor = Paleta.TextPeInchis,
                 Font = Paleta.Monospatiat,
                 ReadOnly = true,
-                Margin = new Padding(16),
             };
-            var gazdaJurnal = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18, 16, 18, 16), BackColor = Paleta.CardInchis };
-            gazdaJurnal.Controls.Add(_jurnal);
-            cardJurnal.Controls.Add(gazdaJurnal);
+            cardJurnal.Controls.Add(_jurnal);
+            cardJurnal.Controls.Add(etJurnal);
+            // lasam o rama in jurul casetei, altfel textul ar acoperi coltul rotunjit al cardului
+            cardJurnal.Resize += (s, e) =>
+                _jurnal.Bounds = new Rectangle(18, 40, Math.Max(40, cardJurnal.Width - 36), Math.Max(30, cardJurnal.Height - 58));
 
             pag.Controls.Add(cardJurnal);
             pag.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 14, BackColor = Color.Transparent });

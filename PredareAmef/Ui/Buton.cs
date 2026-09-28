@@ -99,7 +99,8 @@ namespace PredareAmef.Ui
         public RandMeniu()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint |
+                     ControlStyles.SupportsTransparentBackColor, true);
             BackColor = Color.Transparent;
             Font = Paleta.Corp;
             Height = 40;
@@ -140,6 +141,11 @@ namespace PredareAmef.Ui
                         g.DrawLine(p, r.Left + 1, r.Top + r.Height / 2, r.Right - 3, r.Top + r.Height / 2);
                         g.DrawLine(p, r.Right - 7, r.Top + 3, r.Right - 3, r.Top + r.Height / 2);
                         g.DrawLine(p, r.Right - 7, r.Bottom - 3, r.Right - 3, r.Top + r.Height / 2);
+                        break;
+                    case "lucru": // un ceas: rotund, cu doua ace
+                        g.DrawEllipse(p, r.Left + 1, r.Top + 1, r.Width - 3, r.Height - 3);
+                        g.DrawLine(p, r.Left + r.Width / 2, r.Top + r.Height / 2, r.Left + r.Width / 2, r.Top + 4);
+                        g.DrawLine(p, r.Left + r.Width / 2, r.Top + r.Height / 2, r.Right - 5, r.Top + r.Height / 2);
                         break;
                     case "rezultate":
                         g.DrawLine(p, r.Left + 1, r.Top + 3, r.Right - 1, r.Top + 3);
