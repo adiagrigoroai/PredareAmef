@@ -20,6 +20,8 @@ namespace PredareAmef.Forms
         private readonly ComboBox _unitate = new ComboBox();
         private readonly TextBox _observatii = new TextBox();
         private readonly CheckBox _genereaza = new CheckBox();
+        private readonly CheckBox _etichete = new CheckBox();
+        private readonly ComboBox _imprimanta = new ComboBox();
 
         public bool Genereaza { get { return _genereaza.Checked; } }
         public string Motiv { get { return _motiv.Text.Trim(); } }
@@ -27,6 +29,8 @@ namespace PredareAmef.Forms
         public string MemorieNoua { get { return _memorieNoua.Text.Trim(); } }
         public string UnitateService { get { return _unitate.Text.Trim(); } }
         public string Observatii { get { return _observatii.Text.Trim(); } }
+        public bool TiparesteEtichete { get { return _etichete.Checked; } }
+        public string Imprimanta { get { return _imprimanta.Text.Trim(); } }
 
         public PvDialog(HandoverOptions valoriInitiale)
         {
@@ -35,7 +39,7 @@ namespace PredareAmef.Forms
             StartPosition = FormStartPosition.CenterParent;
             MaximizeBox = false;
             MinimizeBox = false;
-            ClientSize = new Size(520, 330);
+            ClientSize = new Size(520, 410);
             Font = new Font("Segoe UI", 9f);
 
             int y = 14;
@@ -94,15 +98,34 @@ namespace PredareAmef.Forms
             Controls.Add(_observatii);
             y += 46;
 
+            _etichete.Text = "Tipareste etichetele (memorie + plic) dupa predare";
+            _etichete.SetBounds(16, y, 480, 22);
+            _etichete.Checked = valoriInitiale != null && valoriInitiale.TiparesteEtichete;
+            _etichete.CheckedChanged += (s, e) => ActualizeazaActive();
+            Controls.Add(_etichete);
+            y += 28;
+
+            AdaugaEticheta("Imprimanta etichete:", ref y, urmeazaControl: true);
+            _imprimanta.SetBounds(150, y - 22, 350, 24);
+            _imprimanta.DropDownStyle = ComboBoxStyle.DropDownList;
+            foreach (string nume in EtichetaPrinter.Imprimante()) _imprimanta.Items.Add(nume);
+            string alesa = valoriInitiale != null && !string.IsNullOrWhiteSpace(valoriInitiale.ImprimantaEtichete)
+                ? valoriInitiale.ImprimantaEtichete : EtichetaPrinter.ImprimantaImplicita();
+            if (alesa != null && _imprimanta.Items.Contains(alesa)) _imprimanta.SelectedItem = alesa;
+            else if (_imprimanta.Items.Count > 0) _imprimanta.SelectedIndex = 0;
+            Controls.Add(_imprimanta);
+            y += 20;
+
             var info = new Label
             {
                 Text = "Numarul de rapoarte Z, totalul vanzarilor si perioada de utilizare se iau\n" +
-                       "singure din raportul memoriei fiscale, dupa predare.",
+                       "singure din raportul memoriei fiscale, dupa predare. Etichetele raman si\n" +
+                       "pe disc, langa fisierele predarii.",
                 ForeColor = SystemColors.GrayText,
-                Bounds = new Rectangle(16, y, 484, 34),
+                Bounds = new Rectangle(16, y, 484, 48),
             };
             Controls.Add(info);
-            y += 40;
+            y += 54;
 
             var ok = new Button { Text = "Continua", DialogResult = DialogResult.OK, Bounds = new Rectangle(300, y, 96, 30) };
             var renunt = new Button { Text = "Renunta", DialogResult = DialogResult.Cancel, Bounds = new Rectangle(404, y, 96, 30) };
@@ -138,6 +161,8 @@ namespace PredareAmef.Forms
             _memorieNoua.Enabled = activ;
             _unitate.Enabled = activ;
             _observatii.Enabled = activ;
+            _etichete.Enabled = activ;
+            _imprimanta.Enabled = activ && _etichete.Checked;
         }
 
         /// <summary>Scrie in optiuni ce s-a completat.</summary>
@@ -150,6 +175,8 @@ namespace PredareAmef.Forms
             opt.PvMemorieNoua = MemorieNoua;
             opt.PvUnitateService = UnitateService;
             opt.PvObservatii = Observatii;
+            opt.TiparesteEtichete = TiparesteEtichete;
+            opt.ImprimantaEtichete = Imprimanta;
         }
     }
 }

@@ -62,6 +62,12 @@ namespace PredareAmef.Services
         public string PvUnitateService { get; set; } = "IT SMART RETAIL";
 
         public string PvObservatii { get; set; } = "";
+
+        /// <summary>Daca tiparim etichetele (memorie + plic) dupa procesul verbal.</summary>
+        public bool TiparesteEtichete { get; set; } = false;
+
+        /// <summary>Imprimanta de etichete; gol = cea implicita a calculatorului.</summary>
+        public string ImprimantaEtichete { get; set; } = "";
     }
 
     public sealed class DeviceInfo

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 
@@ -25,6 +26,9 @@ namespace PredareAmef.Services
         /// <summary>Numar fisiere .p7b descarcate la Pas 5 (ANAF). 0 = ANAF esuat.</summary>
         public int LastAnafFileCount { get; private set; } = -1;
 
+        /// <summary>Etichetele descarcate la ultima predare.</summary>
+        public List<string> EtichetePath { get; } = new List<string>();
+
         /// <summary>Raportul sumar al memoriei, din care se iau datele pentru procesul verbal.</summary>
         public string RaportSumarPath { get; private set; }
 
@@ -43,6 +47,38 @@ namespace PredareAmef.Services
         /// Un esec aici nu strica predarea: fisierele sunt deja pe disc, iar documentul se
         /// poate face si din pagina CRM.
         /// </summary>
+        /// <summary>
+        /// Descarca eticheta memoriei si pe cea de plic si le trimite la imprimanta.
+        /// Ele raman si pe disc, langa celelalte fisiere ale predarii: daca imprimanta
+        /// lipseste sau ramane fara etichete, se pot tipari mai tarziu.
+        /// </summary>
+        private void TipareseteEtichete(CrmPvService crm, HandoverOptions opt, string serie, ILogger log)
+        {
+            foreach (string tip in new[] { "memorie", "plic" })
+            {
+                try
+                {
+                    string cale = crm.DescarcaEticheta(serie, tip, OutputDir);
+                    if (cale == null)
+                    {
+                        log.Log("Eticheta " + tip + ": " + (crm.UltimaEroare ?? "nu s-a putut descarca"), LogLevel.Warning);
+                        continue;
+                    }
+                    EtichetePath.Add(cale);
+
+                    string eroare;
+                    if (EtichetaPrinter.Tipareste(cale, opt.ImprimantaEtichete, out eroare))
+                        log.Log("Eticheta " + tip + ": trimisa la imprimanta.", LogLevel.Success);
+                    else
+                        log.Log("Eticheta " + tip + ": salvata, dar netiparita — " + eroare, LogLevel.Warning);
+                }
+                catch (Exception ex)
+                {
+                    log.Log("Eticheta " + tip + ": " + ex.Message, LogLevel.Warning);
+                }
+            }
+        }
+
         private void CereProcesVerbal(HandoverOptions opt, string serie, ILogger log)
         {
             try
@@ -80,6 +116,10 @@ namespace PredareAmef.Services
                 {
                     ProcesVerbalPath = cale;
                     log.Log("Proces verbal salvat: " + Path.GetFileName(cale), LogLevel.Success);
+
+                    // Etichetele se cer dupa proces verbal: ele iau data predarii si numarul
+                    // de rapoarte Z din inregistrarea tocmai facuta in CRM.
+                    if (opt.TiparesteEtichete) TipareseteEtichete(crm, opt, serie, log);
                 }
                 else
                 {

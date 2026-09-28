@@ -58,6 +58,7 @@
     <Compile Include="Services\PvDataExtractor.cs" />
     <Compile Include="Services\CrmPvService.cs" />
     <Compile Include="Forms\PvDialog.cs" />
+    <Compile Include="Services\EtichetaPrinter.cs" />
     <Compile Include="Services\PortConflictRecovery.cs" />
     <Compile Include="Services\FiscalMemoryReader.cs" />
     <Compile Include="Services\MfReader.cs" />

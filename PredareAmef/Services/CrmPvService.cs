@@ -191,6 +191,36 @@ namespace PredareAmef.Services
             }
         }
 
+        /// <summary>
+        /// Descarca o eticheta gata randata (PNG) si o salveaza in folderul dat.
+        /// <paramref name="tip"/>: "memorie" sau "plic". Intoarce calea, sau null.
+        ///
+        /// Se cere DUPA procesul verbal: etichetele iau data predarii si numarul de
+        /// rapoarte Z din inregistrarea tocmai facuta in CRM.
+        /// </summary>
+        public string DescarcaEticheta(string serie, string tip, string folderDestinatie)
+        {
+            UltimaEroare = null;
+            if (string.IsNullOrWhiteSpace(serie)) { UltimaEroare = "Lipseste seria aparatului."; return null; }
+            if (_token == null && !Autentifica()) return null;
+
+            try
+            {
+                Directory.CreateDirectory(folderDestinatie);
+                string cale = Path.Combine(folderDestinatie,
+                    "Eticheta_" + tip + "_" + SafeName(serie) + ".png");
+                DescarcaPost(_baza + "/api/predare_memorie/eticheta",
+                    "{\"serie_amef\":\"" + Escapa(serie) + "\",\"tip\":\"" + Escapa(tip) + "\",\"format\":\"png\"}",
+                    _token, cale);
+                return cale;
+            }
+            catch (Exception ex)
+            {
+                UltimaEroare = Motiv(ex);
+                return null;
+            }
+        }
+
         // ── ajutoare ──
 
         private static string Escapa(string s)

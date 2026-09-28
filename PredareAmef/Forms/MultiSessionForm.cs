@@ -368,6 +368,8 @@ namespace PredareAmef.Forms
                 PvMemorieNoua = _pvOptiuni.PvMemorieNoua,
                 PvUnitateService = _pvOptiuni.PvUnitateService,
                 PvObservatii = _pvOptiuni.PvObservatii,
+                TiparesteEtichete = _pvOptiuni.TiparesteEtichete,
+                ImprimantaEtichete = _pvOptiuni.ImprimantaEtichete,
             };
 
             _runCts = new CancellationTokenSource();
