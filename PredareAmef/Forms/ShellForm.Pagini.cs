@@ -51,6 +51,7 @@ namespace PredareAmef.Forms
                 "Înlocuire memorie fiscală defectă",
                 "Casare aparat",
                 "Schimbare proprietar",
+                "Înstrăinare AMEF",
                 "La cererea organului fiscal",
             });
             _cbMotiv.SelectedIndex = 0;

@@ -60,6 +60,7 @@ namespace PredareAmef.Forms
                 "Inlocuire memorie fiscala defecta",
                 "Casare aparat",
                 "Schimbare proprietar",
+                "Instrainare AMEF",
                 "La cererea organului fiscal",
             });
             _motiv.Text = valoriInitiale != null ? valoriInitiale.PvMotiv : "";
