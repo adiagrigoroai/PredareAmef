@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 using PredareAmef.Forms;
 
@@ -18,7 +18,8 @@ namespace PredareAmef
             }
 
             // Check pentru update se face din MainForm.Shown (vezi MainForm.cs)
-            Application.Run(new MainForm());
+            // Interfata noua; ferestrele vechi raman in cod pentru cazuri speciale.
+            Application.Run(new ShellForm());
         }
     }
 }

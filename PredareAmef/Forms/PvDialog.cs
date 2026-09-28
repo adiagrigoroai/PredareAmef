@@ -69,7 +69,8 @@ namespace PredareAmef.Forms
             AdaugaEticheta("Predat de:", ref y, urmeazaControl: true);
             _predatDe.SetBounds(150, y - 22, 350, 24);
             _predatDe.Text = valoriInitiale != null && !string.IsNullOrWhiteSpace(valoriInitiale.PvPredatDe)
-                ? valoriInitiale.PvPredatDe : Environment.UserName;
+                ? valoriInitiale.PvPredatDe
+                : ReprezentantPentru(valoriInitiale != null ? valoriInitiale.PvUnitateService : null);
             Controls.Add(_predatDe);
             y += 14;
 
@@ -87,6 +88,10 @@ namespace PredareAmef.Forms
             _unitate.Items.AddRange(new object[] { "IT SMART RETAIL", "IT SMART SUPORT", "IT SMART A.M.E.F" });
             _unitate.SelectedItem = valoriInitiale != null && _unitate.Items.Contains(valoriInitiale.PvUnitateService)
                 ? valoriInitiale.PvUnitateService : "IT SMART RETAIL";
+            // Fiecare firma de service are reprezentantul ei, acelasi care semneaza in sablonul
+            // procesului verbal. Schimbarea firmei schimba si tehnicianul, dar campul ramane
+            // liber: poate preda altcineva.
+            _unitate.SelectedIndexChanged += (s, e) => _predatDe.Text = ReprezentantPentru(_unitate.Text);
             Controls.Add(_unitate);
             y += 14;
 
@@ -144,6 +149,20 @@ namespace PredareAmef.Forms
             CancelButton = renunt;
 
             ActualizeazaActive();
+        }
+
+        /// <summary>
+        /// Cine preda, pentru fiecare firma de service — aceleasi nume ca in sabloanele
+        /// proceselor verbale din CRM, unde semneaza ca reprezentant al unitatii.
+        /// </summary>
+        public static string ReprezentantPentru(string unitateService)
+        {
+            switch ((unitateService ?? "").Trim().ToUpperInvariant())
+            {
+                case "IT SMART SUPORT": return "PANTURESCU MIHAELA";
+                case "IT SMART A.M.E.F": return "AGRIGOROAI TEOFILIA";
+                default: return "AGRIGOROAI ADRIAN";
+            }
         }
 
         private void AdaugaEticheta(string text, ref int y, bool urmeazaControl)

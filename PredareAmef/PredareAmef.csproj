@@ -59,6 +59,11 @@
     <Compile Include="Services\CrmPvService.cs" />
     <Compile Include="Forms\PvDialog.cs" />
     <Compile Include="Services\EtichetaPrinter.cs" />
+    <Compile Include="Ui\Paleta.cs" />
+    <Compile Include="Ui\Card.cs" />
+    <Compile Include="Ui\Buton.cs" />
+    <Compile Include="Forms\ShellForm.cs" />
+    <Compile Include="Forms\ShellForm.Pagini.cs" />
     <Compile Include="Services\PortConflictRecovery.cs" />
     <Compile Include="Services\FiscalMemoryReader.cs" />
     <Compile Include="Services\MfReader.cs" />
