@@ -220,9 +220,42 @@ namespace PredareAmef.Forms
         private async void VerificaActualizariLaPornire(object expeditor, EventArgs e)
         {
             Shown -= VerificaActualizariLaPornire;
+            VerificaRezultatUltimulUpdate();
             string pornit = System.Configuration.ConfigurationManager.AppSettings["AutoCheckUpdate"];
             if (!string.IsNullOrEmpty(pornit) && pornit.Equals("false", StringComparison.OrdinalIgnoreCase)) return;
             await VerificaActualizari(false);
+        }
+
+        /// <summary>
+        /// Daca tocmai s-a incercat un update si, dupa restart, versiunea a ramas veche,
+        /// spunem omului clar (nu se mai pierde in tacere) si deschidem logul la cerere.
+        /// </summary>
+        private void VerificaRezultatUltimulUpdate()
+        {
+            try
+            {
+                string tag; DateTime cand;
+                if (!UpdateService.UltimaTentativa(out tag, out cand)) return;
+                if ((DateTime.Now - cand).TotalMinutes > 20) return; // doar imediat dupa o tentativa
+                Version vTag;
+                if (!Version.TryParse((tag ?? "").TrimStart('v', 'V'), out vTag)) return;
+                Version vCurent = UpdateService.GetCurrentVersion();
+                if (vCurent >= vTag) return; // s-a aplicat, totul bine
+
+                UpdateService.Log("Dupa restart tot v" + vCurent + " (asteptam " + tag + ") — update neaplicat.");
+                string cauza = UpdateService.RuleazaDinOneDrive()
+                    ? "Aplicația rulează dintr-un folder OneDrive, unde actualizarea automată e nesigură (fișierul e blocat/sincronizat)."
+                    : "Fișierul a fost blocat (antivirus, permisiuni, sau aplicația era încă deschisă).";
+                var r = MessageBox.Show(this,
+                    "Actualizarea la " + tag + " nu s-a aplicat — ești tot pe v" + vCurent + ".\r\n\r\n" +
+                    cauza + "\r\n\r\n" +
+                    "Recomandare: rulează kitul de instalare (PredareAmef_Setup) pentru o actualizare sigură.\r\n\r\n" +
+                    "Deschizi logul de update?",
+                    "Actualizare neaplicată", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (r == DialogResult.Yes)
+                    try { System.Diagnostics.Process.Start("notepad.exe", "\"" + UpdateService.LogPath + "\""); } catch { }
+            }
+            catch { }
         }
 
         /// <summary>

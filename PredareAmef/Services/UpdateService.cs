@@ -98,6 +98,48 @@ namespace PredareAmef.Services
 
         private static string StateFile { get { return Path.Combine(StateDir, "update_state.txt"); } }
 
+        /// <summary>Fisierul de log al actualizarilor (%APPDATA%\PredareAmef\update.log).</summary>
+        public static string LogPath { get { return Path.Combine(StateDir, "update.log"); } }
+
+        /// <summary>Scrie o linie in logul de update (best-effort).</summary>
+        public static void Log(string mesaj)
+        {
+            try
+            {
+                File.AppendAllText(LogPath,
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + mesaj + Environment.NewLine);
+                // nu lasam logul sa creasca la infinit
+                var fi = new FileInfo(LogPath);
+                if (fi.Exists && fi.Length > 200 * 1024)
+                {
+                    var linii = File.ReadAllLines(LogPath);
+                    File.WriteAllLines(LogPath, linii.Length > 400 ? Skip(linii, linii.Length - 400) : linii);
+                }
+            }
+            catch { }
+        }
+
+        private static string[] Skip(string[] a, int n)
+        {
+            if (n <= 0) return a;
+            var r = new string[a.Length - n];
+            Array.Copy(a, n, r, 0, r.Length);
+            return r;
+        }
+
+        /// <summary>Aplicatia ruleaza dintr-un folder OneDrive (unde update-ul in loc e nesigur)?</summary>
+        public static bool RuleazaDinOneDrive()
+        {
+            try
+            {
+                string exe = Assembly.GetExecutingAssembly().Location ?? "";
+                return exe.IndexOf("OneDrive", StringComparison.OrdinalIgnoreCase) >= 0
+                    || exe.IndexOf("\\Dropbox\\", StringComparison.OrdinalIgnoreCase) >= 0
+                    || exe.IndexOf("\\Google Drive", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            catch { return false; }
+        }
+
         public static void MarkVersionIgnored(string tagName)
         {
             try
@@ -115,6 +157,23 @@ namespace PredareAmef.Services
                 File.WriteAllText(StateFile, tagName + "|" + DateTime.UtcNow.ToString("o"));
             }
             catch { /* best-effort */ }
+        }
+
+        /// <summary>Ultima versiune la care s-a incercat update (tag + cand), sau false.</summary>
+        public static bool UltimaTentativa(out string tag, out DateTime cand)
+        {
+            tag = null; cand = DateTime.MinValue;
+            try
+            {
+                if (!File.Exists(StateFile)) return false;
+                var parts = File.ReadAllText(StateFile).Trim().Split('|');
+                if (parts.Length != 2) return false;
+                DateTime ts;
+                if (!DateTime.TryParse(parts[1], null, System.Globalization.DateTimeStyles.RoundtripKind, out ts)) return false;
+                tag = parts[0]; cand = ts;
+                return true;
+            }
+            catch { return false; }
         }
 
         public static bool WasVersionRecentlyIgnored(string tagName)
@@ -202,6 +261,12 @@ namespace PredareAmef.Services
                 info.Eroare = ex.Message;
                 Trace.WriteLine("UpdateService.CheckForUpdate: " + ex.Message);
             }
+            if (!string.IsNullOrEmpty(info.Eroare))
+                Log("Verificare ESUATA: " + info.Eroare + " (curent v" + info.CurrentVersion + ")");
+            else
+                Log("Verificare: curent v" + info.CurrentVersion + ", ultima " +
+                    (info.LatestVersion != null ? "v" + info.LatestVersion : "necunoscuta") +
+                    ", update=" + info.HasUpdate);
             return info;
         }
 
@@ -232,6 +297,7 @@ namespace PredareAmef.Services
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
                 string tempPath = Path.Combine(Path.GetTempPath(), "PredareAmef_" + info.TagName + ".exe");
+                Log("Descarc " + info.TagName + " (" + (info.AssetSize / 1024) + " KB) in " + tempPath);
                 if (File.Exists(tempPath)) File.Delete(tempPath);
 
                 using (var wc = new WebClient())
@@ -259,10 +325,15 @@ namespace PredareAmef.Services
                 }
 
                 if (File.Exists(tempPath) && new FileInfo(tempPath).Length > 0)
+                {
+                    Log("Descarcat OK (" + (new FileInfo(tempPath).Length / 1024) + " KB).");
                     return tempPath;
+                }
+                Log("Descarcare ESUATA: fisierul temporar lipseste sau e gol.");
             }
             catch (Exception ex)
             {
+                Log("Descarcare ESUATA: " + ex.Message);
                 Trace.WriteLine("UpdateService.DownloadUpdate: " + ex.Message);
             }
             return null;
@@ -279,24 +350,36 @@ namespace PredareAmef.Services
         {
             string currentExe = Assembly.GetExecutingAssembly().Location;
             string bat = Path.Combine(Path.GetTempPath(), "PredareAmef_update.bat");
+            string log = LogPath;
 
+            Log("Aplicare update: copiez \"" + Path.GetFileName(newExePath) + "\" peste \"" + currentExe + "\"" +
+                (RuleazaDinOneDrive() ? " [ATENTIE: folder OneDrive — copierea poate fi blocata/revenita]" : ""));
+
+            // Comparam dimensiunile ca sa stim sigur daca s-a scris (OneDrive poate reveni
+            // la fisierul vechi, caz in care 'copy' da succes dar continutul ramane vechi).
             var sb = new StringBuilder();
             sb.AppendLine("@echo off");
             sb.AppendLine("setlocal EnableDelayedExpansion");
+            sb.AppendLine("set \"LOG=" + log + "\"");
+            sb.AppendLine("set \"NEW=" + newExePath + "\"");
+            sb.AppendLine("set \"CUR=" + currentExe + "\"");
             sb.AppendLine("timeout /t 3 /nobreak >nul");
+            sb.AppendLine("for %%A in (\"!NEW!\") do set SRC=%%~zA");
             sb.AppendLine("set RETRY=0");
             sb.AppendLine(":COPY");
-            sb.AppendLine("copy /Y /B \"" + newExePath + "\" \"" + currentExe + "\" >nul 2>&1");
-            sb.AppendLine("if errorlevel 1 (");
-            sb.AppendLine("  set /a RETRY+=1");
-            sb.AppendLine("  if !RETRY! lss 20 (");
-            sb.AppendLine("    timeout /t 2 /nobreak >nul");
-            sb.AppendLine("    goto COPY");
-            sb.AppendLine("  )");
-            sb.AppendLine("  echo Update FAILED — copy locked after 20 retries > \"" + Path.Combine(Path.GetTempPath(), "PredareAmef_update_error.log") + "\"");
-            sb.AppendLine(")");
-            sb.AppendLine("start \"\" \"" + currentExe + "\"");
-            sb.AppendLine("del \"" + newExePath + "\" >nul 2>&1");
+            sb.AppendLine("copy /Y /B \"!NEW!\" \"!CUR!\" >nul 2>&1");
+            sb.AppendLine("set DST=0");
+            sb.AppendLine("for %%A in (\"!CUR!\") do set DST=%%~zA");
+            sb.AppendLine("if \"!DST!\"==\"!SRC!\" goto OK");
+            sb.AppendLine("set /a RETRY+=1");
+            sb.AppendLine("if !RETRY! lss 20 ( timeout /t 2 /nobreak >nul & goto COPY )");
+            sb.AppendLine("echo %date% %time%  COPIERE ESUATA dupa 20 incercari (src=!SRC! dst=!DST!; fisier blocat / OneDrive / permisiuni).>> \"!LOG!\"");
+            sb.AppendLine("goto RESTART");
+            sb.AppendLine(":OK");
+            sb.AppendLine("echo %date% %time%  Copiere reusita (!DST! bytes).>> \"!LOG!\"");
+            sb.AppendLine(":RESTART");
+            sb.AppendLine("start \"\" \"!CUR!\"");
+            sb.AppendLine("del \"!NEW!\" >nul 2>&1");
             sb.AppendLine("(goto) 2>nul & del \"%~f0\"");
 
             File.WriteAllText(bat, sb.ToString(), Encoding.Default);

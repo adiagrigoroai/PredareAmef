@@ -97,6 +97,12 @@ namespace PredareAmef.Forms
             btnUpdate.Click += async (s, e) => await DoUpdate();
 
             Controls.AddRange(new Control[] { lblVersion, lblNotes, txtNotes, progress, lblStatus, btnLater, btnUpdate });
+
+            if (UpdateService.RuleazaDinOneDrive())
+            {
+                lblStatus.Text = "⚠ Rulezi din OneDrive — update-ul în loc poate eșua. Dacă nu reușește, folosește kitul PredareAmef_Setup.";
+                lblStatus.ForeColor = Theme.Danger;
+            }
         }
 
         private async Task DoUpdate()
@@ -105,6 +111,8 @@ namespace PredareAmef.Forms
             btnLater.Enabled = false;
             progress.Visible = true;
             lblStatus.Text = "Descărcare în curs...";
+            lblStatus.ForeColor = Theme.TextDim;
+            UpdateService.Log("Utilizatorul a pornit update-ul catre " + _info.TagName + ".");
 
             // Marchez "tried" PREVENTIV — daca update-ul esueaza (copy locked etc.),
             // nu vom mai prompt-ui aceeasi versiune in urmatoarele 6h.
