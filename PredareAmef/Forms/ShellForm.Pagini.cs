@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using PredareAmef.Services;
@@ -588,6 +589,371 @@ namespace PredareAmef.Forms
                 _listaRezultate.Controls.Add(card);
                 y += 162;
             }
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        //  Export XML la cerere (operatiune separata de predare)
+        // ══════════════════════════════════════════════════════════════
+
+        private Panel ConstruiestePaginaExportXml()
+        {
+            var pag = PaginaGoala();
+
+            var antet = new Panel { Dock = DockStyle.Top, Height = 66, BackColor = Color.Transparent };
+            var titlu = Titlu("Export XML la cerere"); titlu.Location = new Point(0, 0);
+            var sub = Subtitlu("Export ANAF .p7b pentru un aparat, pe perioada aleasa — fara predare"); sub.Location = new Point(2, 32);
+            antet.Controls.Add(titlu); antet.Controls.Add(sub);
+
+            var zona = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+
+            var card = new Card { Raza = 16 };
+            int y = 22;
+
+            var lblAp = Eticheta("Aparat"); lblAp.Location = new Point(24, y); y += 22;
+            _cbExpAparat = new ComboBox { Location = new Point(24, y), Font = Paleta.Corp, FlatStyle = FlatStyle.Flat, DropDownStyle = ComboBoxStyle.DropDownList, BackColor = Color.White, ForeColor = Paleta.Text, Width = 360 };
+            _btnExpScan = new Buton { Text = "Scanează", Fel = FelButon.Secundar, Size = new Size(110, 30), Location = new Point(392, y - 2) };
+            _btnExpScan.Click += (s, e) => ScaneazaPentruExport();
+            y += 42;
+
+            var lblMod = Eticheta("Perioada"); lblMod.Location = new Point(24, y); y += 22;
+            _rbExpData = new RadioButton { Text = "După dată", Checked = true, Location = new Point(26, y), AutoSize = true, Font = Paleta.Corp, BackColor = Color.Transparent };
+            _rbExpZ = new RadioButton { Text = "După nr. Z", Location = new Point(150, y), AutoSize = true, Font = Paleta.Corp, BackColor = Color.Transparent };
+            y += 30;
+
+            var lblDe = Eticheta("De la"); lblDe.Location = new Point(26, y);
+            var lblPana = Eticheta("Până la"); lblPana.Location = new Point(186, y);
+            y += 20;
+            _dtpExpDe = new DateTimePicker { Format = DateTimePickerFormat.Short, Location = new Point(26, y), Width = 140, Font = Paleta.Corp, Value = new DateTime(DateTime.Now.Year, 1, 1) };
+            _dtpExpPana = new DateTimePicker { Format = DateTimePickerFormat.Short, Location = new Point(186, y), Width = 140, Font = Paleta.Corp, Value = DateTime.Now };
+            _numExpZde = new NumericUpDown { Location = new Point(26, y), Width = 140, Font = Paleta.Corp, Minimum = 1, Maximum = 99999, Value = 1, Visible = false };
+            _numExpZpana = new NumericUpDown { Location = new Point(186, y), Width = 140, Font = Paleta.Corp, Minimum = 1, Maximum = 99999, Value = 1, Visible = false };
+            y += 40;
+
+            MethodInvoker aplicaMod = () =>
+            {
+                bool dupaData = _rbExpData.Checked;
+                _dtpExpDe.Visible = dupaData; _dtpExpPana.Visible = dupaData;
+                _numExpZde.Visible = !dupaData; _numExpZpana.Visible = !dupaData;
+            };
+            _rbExpData.CheckedChanged += (s, e) => aplicaMod();
+            _rbExpZ.CheckedChanged += (s, e) => aplicaMod();
+
+            var lblFolder = Eticheta("Folderul în care se salvează"); lblFolder.Location = new Point(24, y); y += 22;
+            _txtExpFolder = Camp(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), 300);
+            _txtExpFolder.Location = new Point(24, y);
+            var btnFolder = new Buton { Text = "Alege...", Fel = FelButon.Secundar, Size = new Size(88, 30), Location = new Point(332, y - 3) };
+            btnFolder.Click += (s, e) =>
+            {
+                using (var d = new FolderBrowserDialog { SelectedPath = _txtExpFolder.Text })
+                    if (d.ShowDialog(this) == DialogResult.OK) _txtExpFolder.Text = d.SelectedPath;
+            };
+            y += 44;
+
+            // Unitate service + notificare SPV (intra in PV-ul de interventie)
+            var lblUnit = Eticheta("Unitate service"); lblUnit.Location = new Point(24, y);
+            var lblNotif = Eticheta("Notificare SPV (nr./dată) — opțional"); lblNotif.Location = new Point(236, y);
+            y += 20;
+            _cbExpUnitate = Lista(200, "IT SMART RETAIL", "IT SMART SUPORT", "IT SMART A.M.E.F");
+            _cbExpUnitate.Location = new Point(24, y);
+            _cbExpUnitate.SelectedIndex = 0;
+            _txtExpNotificare = Camp("", 280); _txtExpNotificare.Location = new Point(236, y);
+            y += 38;
+
+            _chkExpPv = new CheckBox { Text = "Generează PV de intervenție", Checked = true, Location = new Point(26, y), AutoSize = true, Font = Paleta.Corp, BackColor = Color.Transparent };
+            _chkExpCrm = new CheckBox { Text = "Înregistrează în CRM (dosar + RMA)", Checked = true, Location = new Point(260, y), AutoSize = true, Font = Paleta.Corp, BackColor = Color.Transparent };
+            y += 26;
+            _chkExpEmail = new CheckBox { Text = "Trimite arhiva pe email la:", Location = new Point(26, y), AutoSize = true, Font = Paleta.Corp, BackColor = Color.Transparent };
+            _txtExpEmail = Camp("", 230); _txtExpEmail.Location = new Point(236, y - 2); _txtExpEmail.Enabled = false;
+            _chkExpEmail.CheckedChanged += (s, e) => _txtExpEmail.Enabled = _chkExpEmail.Checked;
+            y += 40;
+
+            _btnExpExporta = new Buton { Text = "Exportă XML", Fel = FelButon.Principal, Size = new Size(160, 42), Location = new Point(24, y) };
+            _btnExpExporta.Click += (s, e) => RuleazaExportXml();
+            _lblExpStare = new Label { Text = "", Font = Paleta.Corp, ForeColor = Paleta.TextSecundar, AutoSize = true, Location = new Point(200, y + 12), BackColor = Color.Transparent };
+
+            card.Controls.AddRange(new Control[]
+            {
+                lblAp, _cbExpAparat, _btnExpScan, lblMod, _rbExpData, _rbExpZ,
+                lblDe, lblPana, _dtpExpDe, _dtpExpPana, _numExpZde, _numExpZpana,
+                lblFolder, _txtExpFolder, btnFolder,
+                lblUnit, lblNotif, _cbExpUnitate, _txtExpNotificare,
+                _chkExpPv, _chkExpCrm, _chkExpEmail, _txtExpEmail,
+                _btnExpExporta, _lblExpStare
+            });
+
+            var cardLog = new Card { Raza = 16, Fundal = Paleta.CardInchis, Contur = Color.Transparent, Padding = new Padding(16) };
+            _txtExpLog = new TextBox { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BorderStyle = BorderStyle.None, BackColor = Paleta.CardInchis, ForeColor = Color.White, Font = new Font("Consolas", 8.5f), Dock = DockStyle.Fill };
+            cardLog.Controls.Add(_txtExpLog);
+
+            zona.Controls.AddRange(new Control[] { card, cardLog });
+            zona.Resize += (s, e) =>
+            {
+                const int latimeCard = 540;  // cardul de formular, latime fixa in stanga
+                int h = Math.Max(120, zona.Height - 4);
+                card.Bounds = new Rectangle(0, 0, latimeCard, Math.Min(h, 470));
+                // Fereastra neagra (log) in dreapta, cat mai lata — ca sa se vada mult info.
+                int xLog = latimeCard + 18;
+                cardLog.Bounds = new Rectangle(xLog, 0, Math.Max(260, zona.Width - xLog), h);
+            };
+
+            pag.Controls.Add(zona);
+            pag.Controls.Add(antet);
+            return pag;
+        }
+
+        private void ReincarcaAparateExport()
+        {
+            if (_cbExpAparat == null) return;
+            int sel = _cbExpAparat.SelectedIndex;
+            _cbExpAparat.Items.Clear();
+            foreach (var a in _aparate)
+                _cbExpAparat.Items.Add(Branding.CurataNume(a.Firma) + " · " + a.Serie + " · " + Branding.CurataNume(a.Model) + "  (" + a.ComPort + ")");
+            if (_cbExpAparat.Items.Count > 0)
+                _cbExpAparat.SelectedIndex = (sel >= 0 && sel < _cbExpAparat.Items.Count) ? sel : 0;
+            if (_lblExpStare != null && _aparate.Count == 0)
+                _lblExpStare.Text = "Niciun aparat — apasă Scanează.";
+        }
+
+        private void ScaneazaPentruExport()
+        {
+            _btnExpScan.Enabled = false;
+            _lblExpStare.Text = "Caut aparate pe porturile seriale...";
+            var log = new ActionLogger((m, l) => { });
+            new Thread(() =>
+            {
+                List<ScannedDevice> gasite = new List<ScannedDevice>();
+                try { gasite = _scanner.ScanAllPorts(log, CancellationToken.None); }
+                catch { }
+                try
+                {
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        _aparate = gasite ?? new List<ScannedDevice>();
+                        ReincarcaAparateExport();
+                        _btnExpScan.Enabled = true;
+                        _lblExpStare.Text = _aparate.Count + " aparate găsite";
+                    });
+                }
+                catch { }
+            })
+            { IsBackground = true }.Start();
+        }
+
+        private void RuleazaExportXml()
+        {
+            int idx = _cbExpAparat.SelectedIndex;
+            if (idx < 0 || idx >= _aparate.Count)
+            {
+                MessageBox.Show(this, "Selectați un aparat (scanați întâi).", "Export XML", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var dev = _aparate[idx];
+            string root = (_txtExpFolder.Text ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                MessageBox.Show(this, "Folderul în care se salvează nu există.", "Export XML", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            bool dupaData = _rbExpData.Checked;
+            DateTime dFrom = _dtpExpDe.Value.Date, dTo = _dtpExpPana.Value.Date;
+            int zFrom = (int)_numExpZde.Value, zTo = (int)_numExpZpana.Value;
+
+            // Valori din UI, citite acum (thread-ul de fundal nu atinge controalele).
+            string unitate = _cbExpUnitate.Text;
+            string reprezentant = PvDialog.ReprezentantPentru(unitate);
+            string notificare = (_txtExpNotificare.Text ?? "").Trim();
+            bool faPv = _chkExpPv.Checked;
+            bool faCrm = _chkExpCrm.Checked;
+            bool faEmail = _chkExpEmail.Checked;
+            string emailTo = (_txtExpEmail.Text ?? "").Trim();
+
+            string firmaCurat = Branding.CurataNume(dev.Firma);
+            string modelCurat = Branding.CurataNume(dev.Model);
+            string nui = (dev.FmNum ?? "").Trim();
+            if (nui == "" || nui == "-") nui = "NUI";
+            string folder = Path.Combine(root, SafeNameExp("Export XML_" + firmaCurat + "_" + dev.Serie + "_" + nui));
+
+            string perioadaTxt = dupaData
+                ? dFrom.ToString("dd.MM.yyyy") + " - " + dTo.ToString("dd.MM.yyyy")
+                : "Z" + zFrom + " - Z" + zTo;
+
+            _btnExpExporta.Enabled = false;
+            _txtExpLog.Clear();
+            _lblExpStare.Text = "Export în curs...";
+
+            new Thread(() =>
+            {
+                int files = 0; string err = null;
+                var log = new ActionLogger((m, l) => { try { BeginInvoke((MethodInvoker)delegate { _txtExpLog.AppendText(m + "\r\n"); }); } catch { } });
+                DudeClient dude = null;
+                try
+                {
+                    Directory.CreateDirectory(folder);
+                    string eOpen;
+                    dude = DudeClient.OpenSerial(dev.ComPort, dev.Baud, out eOpen, log);
+                    if (dude == null) err = "Conexiune eșuată: " + (eOpen ?? "necunoscut");
+                    else
+                    {
+                        var xml = new XmlExporter();
+                        if (dupaData) files = xml.ExportDateRange(dude, folder, dFrom, dTo, cif: SafeNameExp(dev.CIF), log: log);
+                        else files = xml.ExportZRange(dude, folder, zFrom, zTo, cif: SafeNameExp(dev.CIF), log: log);
+                    }
+                }
+                catch (Exception ex) { err = ex.Message; }
+                finally { try { if (dude != null) dude.Dispose(); } catch { } }
+
+                // PV-ul de interventie se genereaza pe fundal (scriere fisier, rapid).
+                string pvPath = null;
+                string nrRma = null;
+                var zips = new List<string>();
+                if (err == null && files > 0)
+                {
+                    var linii = new List<PvLinieExport>();
+                    int total = ColecteazaExport(folder, dupaData, zFrom, zTo, linii, zips);
+                    if (faPv)
+                    {
+                        try
+                        {
+                            var d = new PvInterventieData
+                            {
+                                Firma = firmaCurat, Cif = dev.CIF, Model = modelCurat, Serie = dev.Serie, Nui = nui,
+                                UnitateService = unitate, Reprezentant = reprezentant,
+                                DupaData = dupaData, DataDe = dFrom, DataPana = dTo, ZDe = zFrom, ZPana = zTo,
+                                NotificareSpv = notificare, Linii = linii, TotalFisiere = total
+                            };
+                            try { pvPath = PvInterventie.GenereazaPdf(d, folder); }
+                            catch (Exception exPdf)
+                            {
+                                log.Log("PV PDF a esuat (" + exPdf.Message + "), generez RTF.", LogLevel.Warning);
+                                pvPath = PvInterventie.GenereazaRtf(d, folder);
+                            }
+                            log.Log("PV de interventie generat: " + Path.GetFileName(pvPath), LogLevel.Success);
+                        }
+                        catch (Exception ex) { log.Log("PV de interventie: " + ex.Message, LogLevel.Warning); }
+                    }
+
+                    // Inregistrare in CRM: creeaza RMA + pune PV-ul si arhiva in dosarul clientului.
+                    if (faCrm)
+                    {
+                        try
+                        {
+                            var atas = new List<string>(zips);
+                            if (pvPath != null) atas.Add(pvPath);
+                            var sbRez = new StringBuilder();
+                            foreach (var l in linii) sbRez.Append(l.Eticheta).Append(" (").Append(l.Fisiere).Append(" Z); ");
+                            var crm = new CrmPvService();
+                            nrRma = crm.InregistreazaInterventie(dev.Serie, unitate, perioadaTxt, notificare, total, sbRez.ToString(), atas);
+                            if (nrRma != null) log.Log("CRM: RMA " + nrRma + " creat; PV + arhiva in dosarul clientului.", LogLevel.Success);
+                            else log.Log("CRM: nu s-a inregistrat (" + (crm.UltimaEroare ?? "necunoscut") + ")", LogLevel.Warning);
+                        }
+                        catch (Exception ex) { log.Log("CRM: " + ex.Message, LogLevel.Warning); }
+                    }
+                }
+
+                int filesC = files; string errC = err; string pvC = pvPath; string rmaC = nrRma;
+                var zipsC = zips;
+                try
+                {
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        _btnExpExporta.Enabled = true;
+                        if (errC != null) { _lblExpStare.Text = "Eroare: " + errC; return; }
+
+                        _lblExpStare.Text = filesC + " fișiere exportate";
+                        if (filesC <= 0)
+                        {
+                            MessageBox.Show(this, "Nu s-au găsit rapoarte Z în perioada aleasă.", "Export XML", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        // Email (actiune catre exterior) — doar cu confirmarea utilizatorului.
+                        if (faEmail && !string.IsNullOrWhiteSpace(emailTo))
+                        {
+                            var atasamente = new List<string>(zipsC);
+                            if (pvC != null) atasamente.Add(pvC);
+                            if (MessageBox.Show(this,
+                                    "Trimit pe email către:\n" + emailTo + "\n\n" +
+                                    atasamente.Count + " atașamente (arhive" + (pvC != null ? " + PV" : "") + ").\n\nTrimit acum?",
+                                    "Trimite pe email", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                            {
+                                _lblExpStare.Text = "Trimit email...";
+                                var logUi = new ActionLogger((m, l) => { try { _txtExpLog.AppendText(m + "\r\n"); } catch { } });
+                                new Thread(() =>
+                                {
+                                    bool ok = new EmailService().TrimiteArhiva(emailTo, firmaCurat, dev.Serie, perioadaTxt, atasamente, logUi);
+                                    try { BeginInvoke((MethodInvoker)delegate { _lblExpStare.Text = ok ? "Email trimis." : "Email: eșuat (vezi log)."; }); } catch { }
+                                })
+                                { IsBackground = true }.Start();
+                            }
+                        }
+
+                        string mesaj = filesC + " fișiere exportate în:\n" + folder;
+                        if (pvC != null) mesaj += "\n\nPV: " + Path.GetFileName(pvC);
+                        if (rmaC != null) mesaj += "\nCRM: " + rmaC + " (dosarul clientului)";
+                        if (MessageBox.Show(this, mesaj + "\n\nDeschizi folderul?", "Export XML", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                            try { System.Diagnostics.Process.Start("explorer.exe", "\"" + folder + "\""); } catch { }
+                    });
+                }
+                catch { }
+            })
+            { IsBackground = true }.Start();
+        }
+
+        /// <summary>
+        /// Dupa export, aduna lunile (sau folderul plat la export pe Z) cu rapoarte Z si
+        /// arhivele ZIP produse. Returneaza numarul total de rapoarte Z.
+        /// </summary>
+        private static int ColecteazaExport(string folder, bool dupaData, int zFrom, int zTo,
+            List<PvLinieExport> linii, List<string> zips)
+        {
+            int total = 0;
+            var subdirs = Directory.Exists(folder) ? Directory.GetDirectories(folder) : new string[0];
+            if (subdirs.Length > 0)
+            {
+                Array.Sort(subdirs);
+                foreach (var sub in subdirs)
+                {
+                    int z = NumaraZ(sub);
+                    if (z <= 0) continue;
+                    total += z;
+                    string zip = PrimulZip(sub);
+                    if (zip != null) zips.Add(zip);
+                    linii.Add(new PvLinieExport { Eticheta = Path.GetFileName(sub), Fisiere = z, Arhiva = zip != null ? Path.GetFileName(zip) : null });
+                }
+            }
+            else
+            {
+                int z = NumaraZ(folder);
+                total = z;
+                string zip = PrimulZip(folder);
+                if (zip != null) zips.Add(zip);
+                if (z > 0) linii.Add(new PvLinieExport { Eticheta = "Rapoarte Z " + zFrom + " - " + zTo, Fisiere = z, Arhiva = zip != null ? Path.GetFileName(zip) : null });
+            }
+            return total;
+        }
+
+        private static int NumaraZ(string dir)
+        {
+            if (!Directory.Exists(dir)) return 0;
+            int n = 0;
+            foreach (var f in Directory.GetFiles(dir, "*.p7b"))
+                if (!Path.GetFileName(f).StartsWith("Perioada_raportare", StringComparison.OrdinalIgnoreCase)) n++;
+            return n;
+        }
+
+        private static string PrimulZip(string dir)
+        {
+            if (!Directory.Exists(dir)) return null;
+            var z = Directory.GetFiles(dir, "*.zip");
+            return z.Length > 0 ? z[0] : null;
+        }
+
+        private static string SafeNameExp(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "necunoscut";
+            foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+            return s.Trim();
         }
     }
 }

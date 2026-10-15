@@ -74,8 +74,10 @@ namespace PredareAmef.Services
                         Baud    = baud,
                         Model   = dude.ModelName ?? (f.Length > 0 ? f[0] : "-"),
                         Serie   = NullIfDash(f[1]) ?? dude.SerialNumber ?? "-",
+                        // CMD 123 Opt 1: f[2] = serie fiscala (NUI), f[3] = firma,
+                        // f[4] = antet 2 (ADRESA, nu NUI), f[5] = CIF. Vezi StatusAMEF.
+                        FmNum   = NullIfDash(f[2]) ?? dude.FmNumber ?? "-",
                         Firma   = NullIfDash(f[3]) ?? "-",
-                        FmNum   = NullIfDash(f[4]) ?? dude.FmNumber ?? "-",
                         CIF     = NullIfDash(f[5]) ?? "-",
                     };
                     if (sd.CIF.StartsWith("CIF:", StringComparison.OrdinalIgnoreCase))

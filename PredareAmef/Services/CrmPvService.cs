@@ -221,6 +221,52 @@ namespace PredareAmef.Services
             }
         }
 
+        /// <summary>
+        /// Inregistreaza interventia de export XML in CRM: creeaza un RMA si pune PV-ul +
+        /// arhiva in dosarul clientului (categoriile PV Interventie / Profile P7B).
+        /// Intoarce numarul RMA (ex: RMA-2026-0123), sau null si pune UltimaEroare la esec.
+        /// </summary>
+        public string InregistreazaInterventie(string serie, string unitate, string perioada,
+            string notificare, int total, string rezumat, IEnumerable<string> fisiere)
+        {
+            UltimaEroare = null;
+            if (string.IsNullOrWhiteSpace(serie)) { UltimaEroare = "Lipseste seria aparatului."; return null; }
+            if (_token == null && !Autentifica()) return null;
+
+            try
+            {
+                var data = new StringBuilder("{");
+                data.Append("\"serie_amef\":\"").Append(Escapa(serie)).Append("\",");
+                data.Append("\"unitate_service\":\"").Append(Escapa(unitate ?? "")).Append("\",");
+                data.Append("\"perioada\":\"").Append(Escapa(perioada ?? "")).Append("\",");
+                data.Append("\"notificare_spv\":\"").Append(Escapa(notificare ?? "")).Append("\",");
+                data.Append("\"total_fisiere\":").Append(total).Append(",");
+                data.Append("\"status\":\"Export XML - Finalizat\",");
+                data.Append("\"rezumat\":\"").Append(Escapa(rezumat ?? "")).Append("\"");
+                data.Append("}");
+
+                var campuri = new Dictionary<string, string> { { "data", data.ToString() } };
+                var lista = new List<string>();
+                if (fisiere != null)
+                    foreach (var f in fisiere)
+                        if (!string.IsNullOrWhiteSpace(f) && File.Exists(f)) lista.Add(f);
+
+                string raspuns = TrimiteMultipart(_baza + "/api/interventie_export/inregistreaza", _token, campuri, lista);
+                string nr = IaText(raspuns, "nr_rma");
+                if (string.IsNullOrEmpty(nr))
+                {
+                    UltimaEroare = "CRM: raspuns fara nr_rma. " + (raspuns ?? "");
+                    return null;
+                }
+                return nr;
+            }
+            catch (Exception ex)
+            {
+                UltimaEroare = Motiv(ex);
+                return null;
+            }
+        }
+
         // ── ajutoare ──
 
         private static string Escapa(string s)
@@ -280,6 +326,56 @@ namespace PredareAmef.Services
             using (var resp = (HttpWebResponse)req.GetResponse())
             using (var sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
                 return sr.ReadToEnd();
+        }
+
+        private static string TrimiteMultipart(string url, string token,
+            Dictionary<string, string> campuri, List<string> fisiere)
+        {
+            string boundary = "----PredareAmef" + DateTime.Now.Ticks.ToString("x");
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.Method = "POST";
+            req.ContentType = "multipart/form-data; boundary=" + boundary;
+            req.Timeout = 180000;
+            if (token != null) req.Headers.Add("Authorization", "Bearer " + token);
+
+            using (var ms = new MemoryStream())
+            {
+                var enc = Encoding.UTF8;
+                byte[] nl = enc.GetBytes("\r\n");
+                if (campuri != null)
+                    foreach (var kv in campuri)
+                    {
+                        ScrieText(ms, enc, "--" + boundary + "\r\n");
+                        ScrieText(ms, enc, "Content-Disposition: form-data; name=\"" + kv.Key + "\"\r\n\r\n");
+                        ScrieText(ms, enc, (kv.Value ?? "") + "\r\n");
+                    }
+                if (fisiere != null)
+                    foreach (var f in fisiere)
+                    {
+                        string nume = Path.GetFileName(f);
+                        ScrieText(ms, enc, "--" + boundary + "\r\n");
+                        ScrieText(ms, enc, "Content-Disposition: form-data; name=\"file\"; filename=\"" + nume + "\"\r\n");
+                        ScrieText(ms, enc, "Content-Type: application/octet-stream\r\n\r\n");
+                        byte[] b = File.ReadAllBytes(f);
+                        ms.Write(b, 0, b.Length);
+                        ms.Write(nl, 0, nl.Length);
+                    }
+                ScrieText(ms, enc, "--" + boundary + "--\r\n");
+
+                byte[] body = ms.ToArray();
+                req.ContentLength = body.Length;
+                using (var st = req.GetRequestStream()) st.Write(body, 0, body.Length);
+            }
+
+            using (var resp = (HttpWebResponse)req.GetResponse())
+            using (var sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                return sr.ReadToEnd();
+        }
+
+        private static void ScrieText(Stream s, Encoding enc, string txt)
+        {
+            byte[] b = enc.GetBytes(txt);
+            s.Write(b, 0, b.Length);
         }
 
         private static void DescarcaPost(string url, string corpJson, string token, string caleFisier)

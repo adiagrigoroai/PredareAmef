@@ -156,6 +156,12 @@ namespace PredareAmef.Ui
                         g.DrawEllipse(p, r.Left + 5, r.Top + 5, 7, 7);
                         g.DrawEllipse(p, r.Left + 1, r.Top + 1, 15, 15);
                         break;
+                    case "export": // sageata in jos spre o tava (download/export)
+                        g.DrawLine(p, r.Left + r.Width / 2, r.Top + 1, r.Left + r.Width / 2, r.Bottom - 6);
+                        g.DrawLine(p, r.Left + r.Width / 2 - 4, r.Bottom - 10, r.Left + r.Width / 2, r.Bottom - 6);
+                        g.DrawLine(p, r.Left + r.Width / 2 + 4, r.Bottom - 10, r.Left + r.Width / 2, r.Bottom - 6);
+                        g.DrawLine(p, r.Left + 1, r.Bottom - 2, r.Right - 1, r.Bottom - 2);
+                        break;
                     default: // aparate
                         g.DrawRectangle(p, r.Left + 1, r.Top + 2, r.Width - 3, r.Height - 8);
                         g.DrawLine(p, r.Left + 4, r.Bottom - 2, r.Right - 4, r.Bottom - 2);

@@ -3,7 +3,7 @@
 ; Rezultat: Output\PredareAmef_Setup_<versiune>.exe
 
 #define AppName        "PredareAmef"
-#define AppVersion     "1.3.8"
+#define AppVersion     "1.6.0"
 #define AppPublisher   "Qbiz"
 #define AppExeName     "PredareAmef.exe"
 #define ReleaseDir     "..\PredareAmef\bin\Release"
@@ -41,6 +41,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#ReleaseDir}\PredareAmef.exe";        DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleaseDir}\PredareAmef.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleaseDir}\Interop.dude.dll";       DestDir: "{app}"; Flags: ignoreversion
+; Unelte ANAF: validator A4200 (DUKIntegrator) + arhivare (7za) pentru exportul XML
+Source: "{#ReleaseDir}\Tools\7za.exe";          DestDir: "{app}";           Flags: ignoreversion
+Source: "{#ReleaseDir}\Tools\duke\*";           DestDir: "{app}\duke";      Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#AppName}";  Filename: "{app}\{#AppExeName}"; Comment: "Utilitar predare memorie fiscala AMEF"

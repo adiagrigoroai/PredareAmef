@@ -22,7 +22,7 @@ namespace PredareAmef.Forms
         private readonly Dictionary<string, RandMeniu> _meniu = new Dictionary<string, RandMeniu>();
 
         // ── ecrane ──
-        private Panel _pagAparate, _pagPredare, _pagProgres, _pagRezultate;
+        private Panel _pagAparate, _pagPredare, _pagProgres, _pagRezultate, _pagExportXml;
 
         // ── aparate ──
         private readonly DeviceScannerService _scanner = new DeviceScannerService();
@@ -40,6 +40,18 @@ namespace PredareAmef.Forms
         private RadioButton _rbMemorieDa, _rbMemorieNu;
         private CheckBox _chkPv, _chkEtichete;
         private Label _lblSelectate;
+
+        // ── export xml (operatiune separata) ──
+        private ComboBox _cbExpAparat;
+        private RadioButton _rbExpData, _rbExpZ;
+        private DateTimePicker _dtpExpDe, _dtpExpPana;
+        private NumericUpDown _numExpZde, _numExpZpana;
+        private TextBox _txtExpFolder, _txtExpLog;
+        private Buton _btnExpExporta, _btnExpScan;
+        private Label _lblExpStare;
+        private ComboBox _cbExpUnitate;
+        private TextBox _txtExpNotificare, _txtExpEmail;
+        private CheckBox _chkExpPv, _chkExpEmail, _chkExpCrm;
 
         // ── in lucru ──
         private BaraProgres _progresGeneral;
@@ -65,6 +77,8 @@ namespace PredareAmef.Forms
             BackColor = Paleta.Fundal;
             Font = Paleta.Corp;
             Paleta.FaraPalpaire(this);
+            // Iconita in bara de titlu si pe taskbar (cea din exe).
+            try { Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath); } catch { }
 
             Controls.Add(_continut);
             Controls.Add(ConstruiesteMeniu());
@@ -73,8 +87,9 @@ namespace PredareAmef.Forms
             _pagPredare = ConstruiestePaginaPredare();
             _pagProgres = ConstruiestePaginaProgres();
             _pagRezultate = ConstruiestePaginaRezultate();
+            _pagExportXml = ConstruiestePaginaExportXml();
 
-            foreach (var p in new[] { _pagAparate, _pagPredare, _pagProgres, _pagRezultate })
+            foreach (var p in new[] { _pagAparate, _pagPredare, _pagProgres, _pagRezultate, _pagExportXml })
             {
                 p.Visible = false;
                 _continut.Controls.Add(p);
@@ -143,6 +158,7 @@ namespace PredareAmef.Forms
             y += 4;
             bara.Controls.Add(FaRandMeniu("aparate", "Aparate", "aparate", ref y));
             bara.Controls.Add(FaRandMeniu("predare", "Predare", "predare", ref y));
+            bara.Controls.Add(FaRandMeniu("exportxml", "Export XML", "export", ref y));
             bara.Controls.Add(FaRandMeniu("progres", "În lucru", "lucru", ref y));
             bara.Controls.Add(FaRandMeniu("rezultate", "Rezultate", "rezultate", ref y));
 
@@ -300,6 +316,8 @@ namespace PredareAmef.Forms
             _pagPredare.Visible = cheie == "predare";
             _pagProgres.Visible = cheie == "progres";
             _pagRezultate.Visible = cheie == "rezultate";
+            _pagExportXml.Visible = cheie == "exportxml";
+            if (cheie == "exportxml") ReincarcaAparateExport();
         }
 
         // ══════════════════════════════════════════════════════════════

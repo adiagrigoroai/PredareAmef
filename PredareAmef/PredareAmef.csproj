@@ -48,11 +48,30 @@
       <HintPath>lib\Interop.dude.dll</HintPath>
       <EmbedInteropTypes>False</EmbedInteropTypes>
     </Reference>
+    <Reference Include="PdfSharp-gdi">
+      <HintPath>lib\PdfSharp-gdi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PdfSharp.Charting-gdi">
+      <HintPath>lib\PdfSharp.Charting-gdi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MigraDoc.DocumentObjectModel-gdi">
+      <HintPath>lib\MigraDoc.DocumentObjectModel-gdi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MigraDoc.Rendering-gdi">
+      <HintPath>lib\MigraDoc.Rendering-gdi.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\DudeClient.cs" />
+    <Compile Include="Services\AnafArchiver.cs" />
+    <Compile Include="Services\Branding.cs" />
+    <Compile Include="Services\PvInterventie.cs" />
     <Compile Include="Services\Logger.cs" />
     <Compile Include="Services\HandoverOptions.cs" />
     <Compile Include="Services\PvDataExtractor.cs" />
@@ -101,10 +120,21 @@
     <EmbeddedResource Include="Forms\MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\logo-itsmart.png" />
+    <EmbeddedResource Include="lib\PdfSharp-gdi.dll" />
+    <EmbeddedResource Include="lib\PdfSharp.Charting-gdi.dll" />
+    <EmbeddedResource Include="lib\MigraDoc.DocumentObjectModel-gdi.dll" />
+    <EmbeddedResource Include="lib\MigraDoc.Rendering-gdi.dll" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="lib\Interop.dude.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Tools\7za.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Tools\duke\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -114,6 +114,7 @@ namespace PredareAmef.Services
             int totalFiles = 0;
             int monthsExported = 0;
             int monthsEmpty = 0;
+            var archiver = new AnafArchiver();
 
             // Itereaza luna cu luna de la dateFrom.Month → dateTo.Month
             var cursor = new DateTime(dateFrom.Year, dateFrom.Month, 1);
@@ -139,19 +140,23 @@ namespace PredareAmef.Services
                         " (" + monthStart.ToString("dd-MM-yy") + " → " + monthEnd.ToString("dd-MM-yy") + ")",
                         LogLevel.Info);
 
-                int saved = DownloadMonth(dude, monthStart, monthEnd, subDir, log);
-                totalFiles += saved;
+                DownloadMonth(dude, monthStart, monthEnd, subDir, log);
 
-                if (saved > 0)
+                // "Are date" = are rapoarte Z (Perioada_raportare.p7b e declaratia, nu se numara).
+                int zRapoarte = NumaraZRapoarte(subDir);
+                if (zRapoarte > 0)
                 {
-                    log.Log("  → " + saved + " fisiere .p7b pentru " + monthLabel, LogLevel.Success);
+                    log.Log("  → " + zRapoarte + " rapoarte Z pentru " + monthLabel, LogLevel.Success);
+                    totalFiles += zRapoarte;
                     monthsExported++;
+                    // Validare A4200 (PDF) + arhiva ZIP, exact ca in StatusAMEF.
+                    archiver.PostProcess(subDir, cursor, log);
                 }
                 else
                 {
-                    log.Log("  → 0 fisiere pentru " + monthLabel + " (fara Z in interval)", LogLevel.Debug);
+                    log.Log("  → 0 rapoarte Z pentru " + monthLabel + " — sterg folderul (fara date)", LogLevel.Debug);
                     monthsEmpty++;
-                    try { Directory.Delete(subDir, false); } catch { }
+                    try { Directory.Delete(subDir, true); } catch { }
                 }
 
                 cursor = cursor.AddMonths(1);
@@ -168,6 +173,20 @@ namespace PredareAmef.Services
         /// DUDE auto-numeste fisierele {CUI}_Z{NNNN}.p7b in download_Path.
         /// Retry de 3 ori la eroare -100001 (I/O error) cu pauza intre tentative.
         /// </summary>
+        /// <summary>
+        /// Numara rapoartele Z dintr-un folder: .p7b care NU incep cu "Perioada_raportare"
+        /// (aceea e declaratia A4200, nu un raport Z). 0 = luna fara date.
+        /// </summary>
+        private static int NumaraZRapoarte(string dir)
+        {
+            if (!Directory.Exists(dir)) return 0;
+            int n = 0;
+            foreach (var f in Directory.GetFiles(dir, "*.p7b"))
+                if (!Path.GetFileName(f).StartsWith("Perioada_raportare", StringComparison.OrdinalIgnoreCase))
+                    n++;
+            return n;
+        }
+
         private int DownloadMonth(DudeClient dude, DateTime start, DateTime end, string saveDir, ILogger log)
         {
             try
@@ -220,6 +239,70 @@ namespace PredareAmef.Services
             catch (Exception ex)
             {
                 log.Log("  Exceptie download ANAF: " + ex.Message, LogLevel.Warning);
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Export .p7b pe interval de rapoarte Z (de la zFrom la zTo inclusiv).
+        /// Folosit la exportul XML la cerere, cand userul alege dupa numarul de Z.
+        /// </summary>
+        public int ExportZRange(DudeClient dude, string outputDir, int zFrom, int zTo, string cif, ILogger log, CancellationToken ct = default(CancellationToken))
+        {
+            if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
+            if (zFrom > zTo) { var t = zFrom; zFrom = zTo; zTo = t; }
+
+            log.Log("Export ANAF .p7b dupa nr. Z: " + zFrom + " → " + zTo, LogLevel.Info);
+            DownloadZRange(dude, zFrom, zTo, outputDir, log);
+
+            int zRapoarte = NumaraZRapoarte(outputDir);
+            if (zRapoarte > 0)
+            {
+                // Validare A4200 (PDF) + arhiva ZIP, exact ca in StatusAMEF.
+                new AnafArchiver().PostProcess(outputDir, DateTime.Now, log);
+            }
+            log.Log("Export ANAF total: " + zRapoarte + " rapoarte Z (Z " + zFrom + "-" + zTo + ") in " + outputDir,
+                    zRapoarte > 0 ? LogLevel.Success : LogLevel.Warning);
+            return zRapoarte;
+        }
+
+        private int DownloadZRange(DudeClient dude, int zFrom, int zTo, string saveDir, ILogger log)
+        {
+            try
+            {
+                int filesBefore = Directory.GetFiles(saveDir, "*.p7b").Length;
+
+                int spr = dude.SetDownloadPath(saveDir);
+                if (spr != 0)
+                {
+                    log.Log("  set_Download_Path esuat (rc=" + spr + "): " + (dude.LastError ?? ""), LogLevel.Warning);
+                    return 0;
+                }
+
+                dude.ZRangeStart = zFrom;
+                dude.ZRangeEnd   = zTo;
+
+                int rc = 0;
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    rc = dude.DownloadAnafByZRange();
+                    if (rc == 0) break;
+                    string err = dude.LastError ?? "";
+                    log.Log("  download_ANAF_ZRange (attempt " + attempt + "/3) rc=" + rc + " msg='" + err + "'", LogLevel.Debug);
+                    if (rc != -100001) break;
+                    if (attempt < 3)
+                    {
+                        log.Log("  Pauza 5s inainte de retry (aparat blocat dupa multe operatii)...", LogLevel.Warning);
+                        System.Threading.Thread.Sleep(5000);
+                    }
+                }
+
+                int newFiles = Directory.GetFiles(saveDir, "*.p7b").Length - filesBefore;
+                return newFiles;
+            }
+            catch (Exception ex)
+            {
+                log.Log("  Exceptie download ANAF Z-range: " + ex.Message, LogLevel.Warning);
                 return 0;
             }
         }
